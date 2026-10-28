@@ -1,0 +1,12 @@
+[project]
+name = "comfyui-open-h3-regenerate"
+description = "ComfyUI nodes for NVIDIA's Open-H3-Regenerate-2K: regenerate MiniMax H3 (or other) low-res video drafts at 768P-4K in 3 steps, with the fast H3 VAE decoder and a video-to-H3-prompt node for OpenAI-compatible vision servers."
+version = "1.0.0"
+license = { file = "LICENSE" }
+dependencies = ["av", "safetensors"]
+
+[project.urls]
+Repository = "https://github.com/rdh9616/ComfyUI-Open-H3-Regenerate"
+
+[tool.comfy]
+DisplayName = "Open-H3 Regenerate 2K"

@@ -1,0 +1,11 @@
+ComfyUI-Open-H3-Regenerate
+Copyright 2026 rdh9616
+
+This project includes fast_vae_decoder.py, copied unchanged from NVlabs/Sana
+(https://github.com/NVlabs/Sana, branch sol-engine,
+models/Open-H3-Regenerate-2K/open_h3/fast_vae/decoder.py), licensed under the
+Apache License, Version 2.0. Copyright NVIDIA Corporation.
+
+Model weights are not included. They keep their own licenses: the Open-H3-Regenerate-2K
+refiner LoRA and fast H3 VAE decoder (MiniMax H3 Community License), LightX2V FL2VA Turbo,
+LMS Sharp (Alissonerdx), and the H3 latent upscaler (LBH-123-AI).

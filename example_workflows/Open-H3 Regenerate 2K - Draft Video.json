@@ -1,0 +1,1494 @@
+{
+  "id": "19f7ab23-2e4a-539a-86a1-2a16af1b40d7",
+  "revision": 0,
+  "last_node_id": 27,
+  "last_link_id": 30,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        760,
+        1000
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "START HERE",
+      "properties": {},
+      "widgets_values": [
+        "# Open-H3 Regenerate 2K — Draft Video\nRegenerates a **low-resolution draft** (an H3 768P render, or a 384P–576P clip from LTX, Wan, SANA-Video…) **natively at 2560×1440** (or 768P / 1080P / 4K) with NVIDIA's open replacement for the closed H3-Regenerate-2K API ([project page](https://nvlabs.github.io/Sana/Open-H3-Regenerate-2K/)). Content, layout and motion come from the draft; the 3 refine steps redraw faces, fabric, fur and foliage at full size.\n\n## Use\n1. **Load the draft** in *Draft video* (24 fps is used as is, other rates are resampled).\n2. **Prompt** — written automatically: *Video to H3 Prompt* sends the prepared draft to your OpenAI-compatible vision server (set `server_url`; API key from the environment variable named in `api_key_env`, default `H3_LLM_API_KEY`) and feeds the result to the encoder; check it in *Generated H3 prompt*. To use your own prompt instead (e.g. the one the H3 draft was made with), paste it into the node's `manual_prompt`.\n3. **Run.** Output: `output/video/open_h3_regen_2k_*.mp4` with the draft's own soundtrack.\n\n## Settings (reference recipe — leave as is)\n* *Prepare Draft* `size` **768p** for H3 drafts, **576p** for drafts from other models; `max_frames` 121 = 5 s (5–15 s / up to 360 frames work in one pass, much slower).\n* *Latent Upscale* `resolution` **2k**; 1080p computes 1920×1088 and crops to 1080; **4k** runs the upscaler twice (via 2K).\n* *Sigmas* `steps` **3** (σ 0.909 → 0.857 → 0.667 → 0). `steps` 2 is ~30 % faster but softer on fur / moss. `start_sigma` 0.8 = gentler (the project page's 768P → 4K ladder).\n* Sampler **euler**, **CFG 1** (Basic Guider), seed fixed. The LoRA node applies the merged refiner + LightX2V Turbo + LMS Sharp LoRA and the 50 Sharp curve branches (curve table from `minimax_h3_ref2va_pruned_int8_convrot`).\n* Audio is held as encoded silence while refining (reference); the final MP4 gets the draft's soundtrack.\n* **Fast H3 VAE decoder** (NVIDIA StreamRender-H3, 24 layers): 22 s instead of 50 s at 2K. To use ComfyUI's own decoder instead, replace it with a *VAE Decode* fed by *Video VAE*.\n* **Sol-Attn sparse attention is on** (SoL-Engine's biggest speed-up): all 3 steps sparse, 3.9× faster here with the same look. Select it and press Ctrl+B for dense attention.\n* **Identity drifting?** σ 0.909 redraws a lot: in tests a small fox face drifted towards a wolf (darker coat, lost ear tips) while layout and motion held. Set *Sigmas* `start_sigma` **0.8** (the project page's own 4K ladder setting) to stay closer to the draft; 0.7 is gentler still.\n\n## Models\nFL2VA pruned int8 (`minimax_h3_fl2va_pruned_int8_convrot`, the reference base is FL2VA) · `H3/Open-H3-Regenerate-2K/` LoRA (12.4 GB) + curve branches · LBH `minimax_h3_latent_upscaler_3d_conv_v1` · H3 video/audio VAE · Qwen3-VL 32B encoder.\n\n**Needs:** ComfyUI-Open-H3-Regenerate · Comfyui_Minimax_h3_latent_Upscaler (LBH).\n\n**Time:** measured on the RTX PRO 5000, 5 s clip (121 frames) at **2K ≈ 3 min** warm: 3 refine steps ≈ 122 s with Sol-Attn (474 s dense), fast VAE decode ≈ 24 s (native 50 s), encode / upscale / save ≈ 30 s. A cold start measured 206 s in total. 15 s clips and 4K cost several times more — try 5 s first."
+      ],
+      "color": "#2a2a2a",
+      "bgcolor": "#353535"
+    },
+    {
+      "id": 2,
+      "type": "UNETLoader",
+      "pos": [
+        1000,
+        100
+      ],
+      "size": [
+        360,
+        132
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "title": "H3 FL2VA model (reference base)",
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "default"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 3,
+      "type": "OpenH3RegenLora",
+      "pos": [
+        1400,
+        100
+      ],
+      "size": [
+        520,
+        260
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "Open-H3 Regenerate · LoRA (refiner + Turbo + Sharp)",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenLora"
+      },
+      "widgets_values": [
+        "H3\\Open-H3-Regenerate-2K\\open_h3_regenerate_2k_lora.safetensors",
+        "H3\\Open-H3-Regenerate-2K\\sharp_curve_branches.safetensors",
+        "H3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        1.0,
+        1.0,
+        "bf16"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "BlockSparseAttention",
+      "pos": [
+        1960,
+        100
+      ],
+      "size": [
+        460,
+        330
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "title": "Sparse attention (Sol-Attn) — on; Ctrl+B = dense (3.9x slower)",
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.2,
+        0.0,
+        0.9,
+        "0,1,49",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        true
+      ]
+    },
+    {
+      "id": 5,
+      "type": "PreviewAny",
+      "pos": [
+        2460,
+        100
+      ],
+      "size": [
+        420,
+        180
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "LoRA report",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "CLIPLoader",
+      "pos": [
+        1000,
+        510
+      ],
+      "size": [
+        360,
+        156
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "title": "H3 Text Encoder",
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 7,
+      "type": "VAELoader",
+      "pos": [
+        1400,
+        510
+      ],
+      "size": [
+        360,
+        108
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Video VAE",
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_video_vae_fp16.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 8,
+      "type": "VAELoader",
+      "pos": [
+        1800,
+        510
+      ],
+      "size": [
+        360,
+        108
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "title": "Audio VAE",
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 9,
+      "type": "LoadVideo",
+      "pos": [
+        1000,
+        906
+      ],
+      "size": [
+        400,
+        380
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "title": "Draft video",
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "draft.mp4"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 10,
+      "type": "GetVideoComponents",
+      "pos": [
+        1440,
+        906
+      ],
+      "size": [
+        360,
+        164
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            27
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "bit_depth",
+          "type": "COMBO",
+          "links": null
+        },
+        {
+          "name": "color_space",
+          "type": "COMBO",
+          "links": null
+        }
+      ],
+      "title": "Get Video Components",
+      "properties": {
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "OpenH3RegenPrepareDraft",
+      "pos": [
+        1840,
+        906
+      ],
+      "size": [
+        360,
+        216
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        },
+        {
+          "name": "source_fps",
+          "type": "FLOAT",
+          "link": 6,
+          "widget": {
+            "name": "source_fps"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            7,
+            9
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": [
+            26
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Open-H3 Regenerate · Prepare Draft",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenPrepareDraft"
+      },
+      "widgets_values": [
+        "768p (1344x768)",
+        121,
+        24.0
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 12,
+      "type": "VAEEncode",
+      "pos": [
+        2240,
+        906
+      ],
+      "size": [
+        360,
+        104
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "Encode draft (H3 VAE)",
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 13,
+      "type": "OpenH3VideoToPrompt",
+      "pos": [
+        1000,
+        1366
+      ],
+      "size": [
+        520,
+        620
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            10,
+            13
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "Video to H3 Prompt (inference server)",
+      "properties": {
+        "Node name for S&R": "OpenH3VideoToPrompt"
+      },
+      "widgets_values": [
+        24.0,
+        "http://127.0.0.1:8000/v1",
+        "",
+        "H3_LLM_API_KEY",
+        "video (motion)",
+        "H3 text-to-video (shots + soundscape)",
+        "",
+        1500,
+        0.3,
+        0,
+        "fixed",
+        false,
+        "",
+        ""
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 14,
+      "type": "PreviewAny",
+      "pos": [
+        1560,
+        1366
+      ],
+      "size": [
+        560,
+        420
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Generated H3 prompt",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "PreviewAny",
+      "pos": [
+        2160,
+        1366
+      ],
+      "size": [
+        420,
+        180
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Prompt server report",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 16,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2620,
+        1366
+      ],
+      "size": [
+        360,
+        308
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 13,
+          "widget": {
+            "name": "text"
+          }
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "title": "Encode prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 17,
+      "type": "OpenH3RegenUpscale",
+      "pos": [
+        3180,
+        100
+      ],
+      "size": [
+        460,
+        230
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Open-H3 Regenerate · Latent Upscale (LBH 3D)",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenUpscale"
+      },
+      "widgets_values": [
+        "minimax_h3_latent_upscaler_3d_conv_v1_fp32.pth",
+        "2k (2560x1440)",
+        "bf16",
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 18,
+      "type": "OpenH3RegenRefineLatent",
+      "pos": [
+        3680,
+        100
+      ],
+      "size": [
+        420,
+        160
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 15
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 16
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Open-H3 Regenerate · Refine Latent",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenRefineLatent"
+      },
+      "widgets_values": [
+        "silence (reference)"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "OpenH3RegenSigmas",
+      "pos": [
+        4140,
+        100
+      ],
+      "size": [
+        360,
+        132
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "title": "Open-H3 Regenerate · Sigmas (3 steps)",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenSigmas"
+      },
+      "widgets_values": [
+        3,
+        0.0
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 20,
+      "type": "RandomNoise",
+      "pos": [
+        3180,
+        410
+      ],
+      "size": [
+        360,
+        132
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "title": "Refine noise (fixed)",
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        1766580932,
+        "fixed"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "KSamplerSelect",
+      "pos": [
+        3580,
+        410
+      ],
+      "size": [
+        360,
+        108
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "title": "Euler",
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "BasicGuider",
+      "pos": [
+        3980,
+        410
+      ],
+      "size": [
+        360,
+        104
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 17
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "title": "CFG 1 (one call per step)",
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        4380,
+        410
+      ],
+      "size": [
+        360,
+        164
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 19
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 20
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 21
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 22
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "title": "Regenerate (3 steps)",
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 24,
+      "type": "OpenH3RegenFastVAEDecode",
+      "pos": [
+        3180,
+        814
+      ],
+      "size": [
+        360,
+        132
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "Decode — fast H3 VAE (StreamRender-H3)",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenFastVAEDecode"
+      },
+      "widgets_values": [
+        "H3\\fast_h3_vae_noncausal_24l.safetensors",
+        false
+      ]
+    },
+    {
+      "id": 25,
+      "type": "OpenH3RegenFinish",
+      "pos": [
+        3580,
+        814
+      ],
+      "size": [
+        360,
+        172
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "link": 26,
+          "widget": {
+            "name": "frame_count"
+          }
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            28
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            29
+          ]
+        }
+      ],
+      "title": "Open-H3 Regenerate · Finish Frames",
+      "properties": {
+        "Node name for S&R": "OpenH3RegenFinish"
+      },
+      "widgets_values": [
+        121,
+        "auto (1088 -> 1080, 2176 -> 2160)"
+      ]
+    },
+    {
+      "id": 26,
+      "type": "CreateVideo",
+      "pos": [
+        3980,
+        814
+      ],
+      "size": [
+        360,
+        200
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 28
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "title": "Create video (24 fps)",
+      "properties": {
+        "Node name for S&R": "CreateVideo"
+      },
+      "widgets_values": [
+        24.0,
+        "auto",
+        "sRGB",
+        "none"
+      ]
+    },
+    {
+      "id": 27,
+      "type": "SaveVideo",
+      "pos": [
+        4380,
+        814
+      ],
+      "size": [
+        640,
+        520
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "title": "Save regenerated video",
+      "properties": {
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/open_h3_regen_2k",
+        "auto",
+        "auto",
+        "auto"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      3,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      3,
+      1,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      4,
+      9,
+      0,
+      10,
+      0,
+      "VIDEO"
+    ],
+    [
+      5,
+      10,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      10,
+      2,
+      11,
+      1,
+      "FLOAT"
+    ],
+    [
+      7,
+      11,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      7,
+      0,
+      12,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      11,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      13,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      11,
+      13,
+      1,
+      15,
+      0,
+      "STRING"
+    ],
+    [
+      12,
+      6,
+      0,
+      16,
+      1,
+      "CLIP"
+    ],
+    [
+      13,
+      13,
+      0,
+      16,
+      0,
+      "STRING"
+    ],
+    [
+      14,
+      12,
+      0,
+      17,
+      0,
+      "LATENT"
+    ],
+    [
+      15,
+      17,
+      0,
+      18,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      8,
+      0,
+      18,
+      1,
+      "VAE"
+    ],
+    [
+      17,
+      4,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      18,
+      16,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      19,
+      20,
+      0,
+      23,
+      0,
+      "NOISE"
+    ],
+    [
+      20,
+      22,
+      0,
+      23,
+      1,
+      "GUIDER"
+    ],
+    [
+      21,
+      21,
+      0,
+      23,
+      2,
+      "SAMPLER"
+    ],
+    [
+      22,
+      19,
+      0,
+      23,
+      3,
+      "SIGMAS"
+    ],
+    [
+      23,
+      18,
+      0,
+      23,
+      4,
+      "LATENT"
+    ],
+    [
+      24,
+      23,
+      0,
+      24,
+      0,
+      "LATENT"
+    ],
+    [
+      25,
+      24,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      26,
+      11,
+      1,
+      25,
+      1,
+      "INT"
+    ],
+    [
+      27,
+      10,
+      1,
+      25,
+      2,
+      "AUDIO"
+    ],
+    [
+      28,
+      25,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      25,
+      1,
+      26,
+      1,
+      "AUDIO"
+    ],
+    [
+      30,
+      26,
+      0,
+      27,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "00 · START HERE",
+      "bounding": [
+        0,
+        0,
+        840,
+        1170
+      ],
+      "color": "#3f3f46",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "01 · MODELS",
+      "bounding": [
+        960,
+        0,
+        2060,
+        736
+      ],
+      "color": "#3b4a6b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "02 · DRAFT + PROMPT",
+      "bounding": [
+        960,
+        806,
+        2060,
+        1250
+      ],
+      "color": "#2f5d73",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "03 · REGENERATE",
+      "bounding": [
+        3140,
+        0,
+        1920,
+        644
+      ],
+      "color": "#2f5b52",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "04 · OUTPUT",
+      "bounding": [
+        3140,
+        714,
+        1920,
+        690
+      ],
+      "color": "#7a3b3b",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.55,
+      "offset": [
+        80,
+        120
+      ]
+    }
+  },
+  "version": 0.4
+}
