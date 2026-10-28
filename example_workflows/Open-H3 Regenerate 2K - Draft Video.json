@@ -1,8 +1,8 @@
 {
   "id": "19f7ab23-2e4a-539a-86a1-2a16af1b40d7",
   "revision": 0,
-  "last_node_id": 27,
-  "last_link_id": 30,
+  "last_node_id": 28,
+  "last_link_id": 34,
   "nodes": [
     {
       "id": 1,
@@ -23,7 +23,7 @@
       "title": "START HERE",
       "properties": {},
       "widgets_values": [
-        "# Open-H3 Regenerate 2K — Draft Video\nRegenerates a **low-resolution draft** (an H3 768P render, or a 384P–576P clip from LTX, Wan, SANA-Video…) **natively at 2560×1440** (or 768P / 1080P / 4K) with NVIDIA's open replacement for the closed H3-Regenerate-2K API ([project page](https://nvlabs.github.io/Sana/Open-H3-Regenerate-2K/)). Content, layout and motion come from the draft; the 3 refine steps redraw faces, fabric, fur and foliage at full size.\n\n## Use\n1. **Load the draft** in *Draft video* (24 fps is used as is, other rates are resampled).\n2. **Prompt** — written automatically: *Video to H3 Prompt* sends the prepared draft to your OpenAI-compatible vision server (set `server_url`; API key from the environment variable named in `api_key_env`, default `H3_LLM_API_KEY`) and feeds the result to the encoder; check it in *Generated H3 prompt*. To use your own prompt instead (e.g. the one the H3 draft was made with), paste it into the node's `manual_prompt`.\n3. **Run.** Output: `output/video/open_h3_regen_2k_*.mp4` with the draft's own soundtrack.\n\n## Settings (reference recipe — leave as is)\n* *Prepare Draft* `size` **768p** for H3 drafts, **576p** for drafts from other models; `max_frames` 121 = 5 s (5–15 s / up to 360 frames work in one pass, much slower).\n* *Latent Upscale* `resolution` **2k**; 1080p computes 1920×1088 and crops to 1080; **4k** runs the upscaler twice (via 2K).\n* *Sigmas* `steps` **3** (σ 0.909 → 0.857 → 0.667 → 0). `steps` 2 is ~30 % faster but softer on fur / moss. `start_sigma` 0.8 = gentler (the project page's 768P → 4K ladder).\n* Sampler **euler**, **CFG 1** (Basic Guider), seed fixed. The LoRA node applies the merged refiner + LightX2V Turbo + LMS Sharp LoRA and the 50 Sharp curve branches (curve table from `minimax_h3_ref2va_pruned_int8_convrot`).\n* Audio is held as encoded silence while refining (reference); the final MP4 gets the draft's soundtrack.\n* **Fast H3 VAE decoder** (NVIDIA StreamRender-H3, 24 layers): 22 s instead of 50 s at 2K. To use ComfyUI's own decoder instead, replace it with a *VAE Decode* fed by *Video VAE*.\n* **Sol-Attn sparse attention is on** (SoL-Engine's biggest speed-up): all 3 steps sparse, 3.9× faster here with the same look. Select it and press Ctrl+B for dense attention.\n* **Identity drifting?** σ 0.909 redraws a lot: in tests a small fox face drifted towards a wolf (darker coat, lost ear tips) while layout and motion held. Set *Sigmas* `start_sigma` **0.8** (the project page's own 4K ladder setting) to stay closer to the draft; 0.7 is gentler still.\n\n## Models\nFL2VA pruned int8 (`minimax_h3_fl2va_pruned_int8_convrot`, the reference base is FL2VA) · `H3/Open-H3-Regenerate-2K/` LoRA (12.4 GB) + curve branches · LBH `minimax_h3_latent_upscaler_3d_conv_v1` · H3 video/audio VAE · Qwen3-VL 32B encoder.\n\n**Needs:** ComfyUI-Open-H3-Regenerate · Comfyui_Minimax_h3_latent_Upscaler (LBH).\n\n**Time:** measured on the RTX PRO 5000, 5 s clip (121 frames) at **2K ≈ 3 min** warm: 3 refine steps ≈ 122 s with Sol-Attn (474 s dense), fast VAE decode ≈ 24 s (native 50 s), encode / upscale / save ≈ 30 s. A cold start measured 206 s in total. 15 s clips and 4K cost several times more — try 5 s first."
+        "# Open-H3 Regenerate 2K — Draft Video\nRegenerates a **low-resolution draft** (an H3 768P render, or a 384P–576P clip from LTX, Wan, SANA-Video…) **natively at 2560×1440** (or 768P / 1080P / 4K) with NVIDIA's open replacement for the closed H3-Regenerate-2K API ([project page](https://nvlabs.github.io/Sana/Open-H3-Regenerate-2K/)). Content, layout and motion come from the draft; the 3 refine steps redraw faces, fabric, fur and foliage at full size.\n\n## Use\n1. **Load the draft** in *Draft video* (24 fps is used as is, other rates are resampled).\n2. **Prompt** — written automatically: *Video to H3 Prompt* sends the prepared draft to your OpenAI-compatible vision server (set `server_url`; API key from the environment variable named in `api_key_env`, default `H3_LLM_API_KEY`) and feeds the result to the encoder; check it in *Generated H3 prompt*. To use your own prompt instead (e.g. the one the H3 draft was made with), paste it into the node's `manual_prompt`.\n3. **Run.** Output: `output/video/open_h3_regen_2k_*.mp4` with the draft's own soundtrack.\n\n**If decoding ever fails:** the refined result is already saved in `output/open_h3_latents/` before decoding starts. Open the workflow **Open-H3 Regenerate 2K - Decode Saved Latent**, press **Run** (it uses the newest saved file) — about a minute instead of redoing the refine.\n\n## Settings (reference recipe — leave as is)\n* *Prepare Draft* `size` **768p** for H3 drafts, **576p** for drafts from other models; `max_frames` 121 = 5 s (5–15 s / up to 360 frames work in one pass, much slower).\n* *Latent Upscale* `resolution` **2k**; 1080p computes 1920×1088 and crops to 1080; **4k** runs the upscaler twice (via 2K).\n* *Sigmas* `steps` **3** (σ 0.909 → 0.857 → 0.667 → 0). `steps` 2 is ~30 % faster but softer on fur / moss. `start_sigma` 0.8 = gentler (the project page's 768P → 4K ladder).\n* Sampler **euler**, **CFG 1** (Basic Guider), seed fixed. The LoRA node applies the merged refiner + LightX2V Turbo + LMS Sharp LoRA and the 50 Sharp curve branches (curve table from `minimax_h3_ref2va_pruned_int8_convrot`).\n* Audio is held as encoded silence while refining (reference); the final MP4 gets the draft's soundtrack.\n* **Fast H3 VAE decoder** (NVIDIA StreamRender-H3, 24 layers): 22 s instead of 50 s at 2K. To use ComfyUI's own decoder instead, replace it with a *VAE Decode* fed by *Video VAE*.\n* **Sol-Attn sparse attention is on** (SoL-Engine's biggest speed-up): all 3 steps sparse, 3.9× faster here with the same look. Select it and press Ctrl+B for dense attention.\n* **Identity drifting?** σ 0.909 redraws a lot: in tests a small fox face drifted towards a wolf (darker coat, lost ear tips) while layout and motion held. Set *Sigmas* `start_sigma` **0.8** (the project page's own 4K ladder setting) to stay closer to the draft; 0.7 is gentler still.\n\n## Models\nFL2VA pruned int8 (`minimax_h3_fl2va_pruned_int8_convrot`, the reference base is FL2VA) · `H3/Open-H3-Regenerate-2K/` LoRA (12.4 GB) + curve branches · LBH `minimax_h3_latent_upscaler_3d_conv_v1` · H3 video/audio VAE · Qwen3-VL 32B encoder.\n\n**Needs:** ComfyUI-Open-H3-Regenerate · Comfyui_Minimax_h3_latent_Upscaler (LBH).\n\n**Time:** measured on the RTX PRO 5000, 5 s clip (121 frames) at **2K ≈ 3 min** warm: 3 refine steps ≈ 122 s with Sol-Attn (474 s dense), fast VAE decode ≈ 24 s (native 50 s), encode / upscale / save ≈ 30 s. A cold start measured 206 s in total. 15 s clips and 4K cost several times more — try 5 s first."
       ],
       "color": "#2a2a2a",
       "bgcolor": "#353535"
@@ -251,7 +251,8 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            8
+            8,
+            28
           ]
         }
       ],
@@ -366,7 +367,8 @@
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            27
+            26,
+            31
           ]
         },
         {
@@ -435,7 +437,8 @@
           "name": "frame_count",
           "type": "INT",
           "links": [
-            26
+            25,
+            30
           ]
         },
         {
@@ -987,14 +990,14 @@
     },
     {
       "id": 24,
-      "type": "OpenH3RegenFastVAEDecode",
+      "type": "OpenH3SaveRefinedLatent",
       "pos": [
         3180,
         814
       ],
       "size": [
         360,
-        132
+        172
       ],
       "flags": {},
       "order": 23,
@@ -1004,6 +1007,65 @@
           "name": "samples",
           "type": "LATENT",
           "link": 24
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "link": 25,
+          "widget": {
+            "name": "frame_count"
+          }
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": [
+            27
+          ]
+        }
+      ],
+      "title": "Save refined latent (before decoding)",
+      "properties": {
+        "Node name for S&R": "OpenH3SaveRefinedLatent"
+      },
+      "widgets_values": [
+        121,
+        "open_h3_regen"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 25,
+      "type": "OpenH3RegenFastVAEDecode",
+      "pos": [
+        3580,
+        814
+      ],
+      "size": [
+        360,
+        152
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 27
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 28
         }
       ],
       "outputs": [
@@ -1011,7 +1073,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            25
+            29
           ]
         }
       ],
@@ -1025,10 +1087,10 @@
       ]
     },
     {
-      "id": 25,
+      "id": 26,
       "type": "OpenH3RegenFinish",
       "pos": [
-        3580,
+        3980,
         814
       ],
       "size": [
@@ -1036,18 +1098,18 @@
         172
       ],
       "flags": {},
-      "order": 24,
+      "order": 25,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 25
+          "link": 29
         },
         {
           "name": "frame_count",
           "type": "INT",
-          "link": 26,
+          "link": 30,
           "widget": {
             "name": "frame_count"
           }
@@ -1055,7 +1117,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 27
+          "link": 31
         }
       ],
       "outputs": [
@@ -1063,14 +1125,14 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            28
+            32
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            29
+            33
           ]
         }
       ],
@@ -1084,10 +1146,10 @@
       ]
     },
     {
-      "id": 26,
+      "id": 27,
       "type": "CreateVideo",
       "pos": [
-        3980,
+        4380,
         814
       ],
       "size": [
@@ -1095,18 +1157,18 @@
         200
       ],
       "flags": {},
-      "order": 25,
+      "order": 26,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 28
+          "link": 32
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 29
+          "link": 33
         }
       ],
       "outputs": [
@@ -1114,7 +1176,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            30
+            34
           ]
         }
       ],
@@ -1130,10 +1192,10 @@
       ]
     },
     {
-      "id": 27,
+      "id": 28,
       "type": "SaveVideo",
       "pos": [
-        4380,
+        4780,
         814
       ],
       "size": [
@@ -1141,13 +1203,13 @@
         520
       ],
       "flags": {},
-      "order": 26,
+      "order": 27,
       "mode": 0,
       "inputs": [
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 30
+          "link": 34
         }
       ],
       "outputs": [
@@ -1366,30 +1428,38 @@
     ],
     [
       25,
-      24,
-      0,
-      25,
-      0,
-      "IMAGE"
-    ],
-    [
-      26,
       11,
       1,
-      25,
+      24,
       1,
       "INT"
     ],
     [
-      27,
+      26,
       10,
       1,
-      25,
+      24,
       2,
       "AUDIO"
     ],
     [
+      27,
+      24,
+      0,
+      25,
+      0,
+      "LATENT"
+    ],
+    [
       28,
+      7,
+      0,
+      25,
+      1,
+      "VAE"
+    ],
+    [
+      29,
       25,
       0,
       26,
@@ -1397,18 +1467,42 @@
       "IMAGE"
     ],
     [
-      29,
-      25,
+      30,
+      11,
       1,
       26,
+      1,
+      "INT"
+    ],
+    [
+      31,
+      10,
+      1,
+      26,
+      2,
+      "AUDIO"
+    ],
+    [
+      32,
+      26,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      33,
+      26,
+      1,
+      27,
       1,
       "AUDIO"
     ],
     [
-      30,
-      26,
-      0,
+      34,
       27,
+      0,
+      28,
       0,
       "VIDEO"
     ]
@@ -1459,7 +1553,7 @@
       "bounding": [
         3140,
         0,
-        1920,
+        2320,
         644
       ],
       "color": "#2f5b52",
@@ -1472,7 +1566,7 @@
       "bounding": [
         3140,
         714,
-        1920,
+        2320,
         690
       ],
       "color": "#7a3b3b",

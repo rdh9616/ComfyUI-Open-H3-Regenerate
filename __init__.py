@@ -20,6 +20,7 @@ import copy
 import hashlib
 import logging
 import os
+import re
 import sys
 import time
 
@@ -598,6 +599,120 @@ class OpenH3RegenFastVAEDecode:
         return (out,)
 
 
+# ------------------------------------------------------------------ refined latent on disk
+
+LATENT_DIR = "open_h3_latents"          # under ComfyUI's output folder
+LATENT_FORMAT = "open_h3_refined_latent_v1"
+
+
+NEWEST = "(newest)"
+
+
+def _latent_dir():
+    return os.path.join(folder_paths.get_output_directory(), LATENT_DIR)
+
+
+def _saved_latents():
+    folder = _latent_dir()
+    if not os.path.isdir(folder):
+        return []
+    names = [n for n in os.listdir(folder) if n.endswith(".safetensors")]
+    return sorted(names, key=lambda n: os.path.getmtime(os.path.join(folder, n)), reverse=True)
+
+
+def _resolve_latent(choice):
+    if choice == NEWEST:
+        files = _saved_latents()
+        return files[0] if files else ""
+    return os.path.basename(choice)
+
+
+class OpenH3SaveRefinedLatent:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "samples": ("LATENT", {"tooltip": "The sampler's output (video or AV latent)."}),
+            "frame_count": ("INT", {"default": 0, "min": 0, "max": 100000,
+                                    "tooltip": "Frames to keep when decoding later (Prepare Draft frame_count; 0 = all)."}),
+            "filename_prefix": ("STRING", {"default": "open_h3_regen"}),
+        }, "optional": {
+            "audio": ("AUDIO", {"tooltip": "Soundtrack for the final MP4 (stored with the latent)."}),
+        }}
+
+    RETURN_TYPES = ("LATENT",)
+    RETURN_NAMES = ("samples",)
+    FUNCTION = "save"
+    OUTPUT_NODE = True
+    CATEGORY = CATEGORY
+    DESCRIPTION = (f"Saves the refined latent (+ frame count and soundtrack) to output/{LATENT_DIR}/ and passes it on. "
+                   "Put it between the sampler and the decoder: the file is written before decoding starts, so a failed "
+                   "decode never costs the refine — open 'Decode Saved Latent' and run that instead.")
+
+    def save(self, samples, frame_count, filename_prefix, audio=None):
+        from safetensors.torch import save_file
+        z = samples["samples"]
+        tensors = {"video": (z.tensors[0] if _nested(z) else z).detach().to("cpu", torch.float32).contiguous()}
+        if _nested(z):
+            tensors["audio_latent"] = z.tensors[1].detach().to("cpu", torch.float32).contiguous()
+        meta = {"format": LATENT_FORMAT, "frame_count": str(int(frame_count))}
+        if audio is not None:
+            tensors["waveform"] = audio["waveform"].detach().to("cpu", torch.float32).contiguous()
+            meta["sample_rate"] = str(int(audio["sample_rate"]))
+        os.makedirs(_latent_dir(), exist_ok=True)
+        prefix = os.path.basename(filename_prefix.strip() or "open_h3_regen")
+        index = 1 + max([int(m.group(1)) for m in (re.match(re.escape(prefix) + r"_(\d+)\.safetensors$", n)
+                                                   for n in os.listdir(_latent_dir())) if m] + [0])
+        name = f"{prefix}_{index:05d}.safetensors"
+        save_file(tensors, os.path.join(_latent_dir(), name), metadata=meta)
+        LOG.info("Open-H3 refined latent saved: output/%s/%s", LATENT_DIR, name)
+        return {"ui": {"text": [f"saved output/{LATENT_DIR}/{name}"]}, "result": (samples,)}
+
+
+class OpenH3LoadRefinedLatent:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "latent_file": ([NEWEST] + _saved_latents(), {
+                "default": NEWEST, "tooltip": f"Files in output/{LATENT_DIR}/, newest first. '{NEWEST}' picks the "
+                                              "latest file when the workflow runs."}),
+        }}
+
+    RETURN_TYPES = ("LATENT", "INT", "AUDIO")
+    RETURN_NAMES = ("samples", "frame_count", "audio")
+    FUNCTION = "load"
+    CATEGORY = CATEGORY
+
+    @classmethod
+    def IS_CHANGED(cls, latent_file):
+        name = _resolve_latent(latent_file)
+        path = os.path.join(_latent_dir(), name) if name else ""
+        return f"{name}:{os.path.getmtime(path)}" if path and os.path.isfile(path) else latent_file
+
+    def load(self, latent_file):
+        from safetensors import safe_open
+        latent_file = _resolve_latent(latent_file)
+        if not latent_file:
+            raise FileNotFoundError(f"no saved latents in output/{LATENT_DIR}/ yet")
+        path = os.path.join(_latent_dir(), latent_file)
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"no saved latent output/{LATENT_DIR}/{latent_file}")
+        with safe_open(path, framework="pt", device="cpu") as f:
+            meta = f.metadata() or {}
+            if meta.get("format") != LATENT_FORMAT:
+                raise ValueError(f"{latent_file} is not a saved Open-H3 refined latent")
+            tensors = {k: f.get_tensor(k) for k in f.keys()}
+        video = tensors["video"]
+        samples = comfy.nested_tensor.NestedTensor((video, tensors["audio_latent"])) \
+            if "audio_latent" in tensors else video
+        audio = None
+        if "waveform" in tensors:
+            audio = {"waveform": tensors["waveform"], "sample_rate": int(meta["sample_rate"])}
+        else:   # silent track of the right length, so Create Video always gets audio
+            frames = int(meta.get("frame_count", "0")) or core.frames_for_latent_t(video.shape[2])
+            audio = {"waveform": torch.zeros(1, 2, round(frames / 24 * 48000)), "sample_rate": 48000}
+        return ({"samples": samples}, int(meta.get("frame_count", "0")), audio)
+
+
 # ------------------------------------------------------------------ video -> H3 prompt (vision LLM server)
 
 SEND_AS = ["video (motion)", "frames (8 stills)"]
@@ -681,6 +796,8 @@ class OpenH3VideoToPrompt:
 
 
 NODE_CLASS_MAPPINGS = {
+    "OpenH3SaveRefinedLatent": OpenH3SaveRefinedLatent,
+    "OpenH3LoadRefinedLatent": OpenH3LoadRefinedLatent,
     "OpenH3VideoToPrompt": OpenH3VideoToPrompt,
     "OpenH3RegenFastVAEDecode": OpenH3RegenFastVAEDecode,
     "OpenH3RegenLora": OpenH3RegenLora,
@@ -692,6 +809,8 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "OpenH3SaveRefinedLatent": "Open-H3 Regenerate · Save Refined Latent",
+    "OpenH3LoadRefinedLatent": "Open-H3 Regenerate · Load Refined Latent",
     "OpenH3VideoToPrompt": "Open-H3 · Video to H3 Prompt (inference server)",
     "OpenH3RegenFastVAEDecode": "Open-H3 Regenerate · Fast VAE Decode (StreamRender-H3)",
     "OpenH3RegenLora": "Open-H3 Regenerate · LoRA (refiner + Turbo + Sharp)",

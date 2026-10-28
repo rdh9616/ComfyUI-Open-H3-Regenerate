@@ -272,7 +272,34 @@ def check_video_prompt_helpers():
     print("  video -> H3 prompt helpers OK (cleanup, sections, key handling, H.264 + JPEG encoding, manual prompt)")
 
 
+def check_latent_roundtrip():
+    out_dir = os.path.join(SCRATCH, "output")
+    folder_paths.set_output_directory(out_dir)
+    video, sound = torch.randn(1, 24, 12, 6, 10), torch.randn(1, 32, 2, 65)
+    audio = {"waveform": torch.randn(1, 2, 44100), "sample_rate": 44100}
+    av = {"samples": comfy.nested_tensor.NestedTensor((video, sound))}
+    saver, loader = pack.OpenH3SaveRefinedLatent(), pack.OpenH3LoadRefinedLatent()
+    for name in os.listdir(os.path.join(out_dir, pack.LATENT_DIR)) if os.path.isdir(os.path.join(out_dir, pack.LATENT_DIR)) else []:
+        os.remove(os.path.join(out_dir, pack.LATENT_DIR, name))
+    res = saver.save(av, 39, "rt", audio)
+    assert res["result"][0] is av and "rt_00001.safetensors" in res["ui"]["text"][0]
+    saver.save({"samples": video}, 0, "rt")                       # video-only, no audio -> rt_00002
+    files = loader.INPUT_TYPES()["required"]["latent_file"][0]
+    assert files[0] == pack.NEWEST and set(files[1:]) == {"rt_00001.safetensors", "rt_00002.safetensors"}, files
+    os.utime(os.path.join(out_dir, pack.LATENT_DIR, "rt_00002.safetensors"), (2e9, 2e9))
+    assert pack._resolve_latent(pack.NEWEST) == "rt_00002.safetensors"
+    assert torch.equal(loader.load(pack.NEWEST)[0]["samples"], video)
+    lat, frames, a = loader.load("rt_00001.safetensors")
+    v2, s2 = lat["samples"].tensors
+    assert torch.equal(v2, video) and torch.equal(s2, sound) and frames == 39
+    assert torch.equal(a["waveform"], audio["waveform"]) and a["sample_rate"] == 44100
+    lat, frames, a = loader.load("rt_00002.safetensors")
+    assert torch.equal(lat["samples"], video) and frames == 0 and a["waveform"].abs().sum() == 0
+    print("  refined latent save / load round trip OK")
+
+
 if __name__ == "__main__":
+    check_latent_roundtrip()
     check_video_prompt_helpers()
     check_fast_vae_lean()
     run_case("full model (recorded t)", None, "ref", "recorded")

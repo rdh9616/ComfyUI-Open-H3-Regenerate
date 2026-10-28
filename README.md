@@ -55,6 +55,8 @@ node reads it from a checkpoint you already have.
 | **Refine Latent** | The AV latent for the refine. The video is re-noised by the sampler; the audio is masked, so ComfyUI keeps it clean at model time 1 (the reference's "audio σ = 0"). The audio is encoded silence by default, or the draft's own soundtrack. |
 | **Fast VAE Decode (StreamRender-H3)** | NVIDIA's fast H3 VAE decoder: the released 36-layer decoder pruned to 24 layers and distilled. It runs NVIDIA's plain-PyTorch path (`fast_vae_decoder.py`, vendored unchanged) through a memory-lean forward (`fast_vae_lean.py`, tested equal to the reference). VRAM ≈ 6.5 GB + 26 KB per latent token. The optional `vae` input is a fallback for clips that don't fit. |
 | **Finish Frames** | Trims the padding frames, crops 1088 → 1080 and 2176 → 2160 rows, and cuts the soundtrack to match. |
+| **Save Refined Latent** | Sits between the sampler and the decoder. It saves the refined latent, the frame count and the soundtrack to `output/open_h3_latents/` *before* decoding starts, then passes the latent on. A failed decode never costs the refine. |
+| **Load Refined Latent** | Loads a saved file (`(newest)` by default) and outputs the latent, frame count and soundtrack for the *Decode Saved Latent* workflow. |
 | **Video to H3 Prompt (inference server)** | Sends a clip to a vision model on an OpenAI-compatible server (vLLM, SGLang, llama.cpp, LM Studio) as a small 4 fps H.264 video, or as 8 stills. Returns an H3 text-to-video prompt: `integrated_multimodal_description` (`[Shot N]` per take) + `overall_soundscape` + `non_diegetic_music`. |
 
 ### How the Sharp curve branches are applied
@@ -79,6 +81,7 @@ Only `forward` is replaced. The modules keep their weights, so ComfyUI's casting
 | Workflow | Use it for |
 |---|---|
 | **Open-H3 Regenerate 2K - Draft Video** | A finished draft regenerated at 2560×1440. The prompt is written by *Video to H3 Prompt*. Set `server_url`, or paste your own prompt into `manual_prompt`. |
+| **Open-H3 Regenerate 2K - Decode Saved Latent** | Both regenerate workflows save the refined result to `output/open_h3_latents/` before decoding (about 150 MB for a 15 s 2K clip). If decoding fails, run this: it turns the newest saved file into the final MP4 in about a minute, without redoing the refine. |
 | **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. |
 
 Defaults follow NVIDIA's recipe: merged LoRA at 1.0 + curve branches · LBH upscaler in bf16 · σ 0.909375 → 0.857 →
@@ -139,7 +142,8 @@ The tests cover:
 * on tiny native H3 models (full and curve-form): patched weights equal W + B·A, AdaLN output equals the reference
   formula, and unpatching restores all weights;
 * the lean fast-VAE forward against NVIDIA's forward on 5 shapes;
-* the prompt node's response cleanup, key handling and media encoding.
+* the prompt node's response cleanup, key handling and media encoding;
+* the refined-latent save / load round trip.
 
 ## Credits
 

@@ -1,8 +1,8 @@
 {
   "id": "19f7ab23-2e4a-539a-86a1-2a16af1b40d7",
   "revision": 0,
-  "last_node_id": 31,
-  "last_link_id": 38,
+  "last_node_id": 32,
+  "last_link_id": 42,
   "nodes": [
     {
       "id": 1,
@@ -23,7 +23,7 @@
       "title": "START HERE",
       "properties": {},
       "widgets_values": [
-        "# Open-H3 Regenerate 2K — Prompt to 2K\nTwo passes in one run: **H3 768P draft** (FL2VA + LightX2V Turbo 4-step LoRA, 6 steps er_sde) → **Open-H3-Regenerate** at **2560×1440** (3 steps). Check the draft MP4 first — if the motion is wrong, change the seed before paying for the 2K pass (mute the *REGENERATE* group with Ctrl+M to stop after the draft).\n\n* **Prompt** feeds both passes (the refine reuses the draft's prompt, like the reference).\n* Draft: 1344×768, 124 frames (5 s). Its generated audio is muxed into both MP4s.\n* Regenerate: identical to the *Draft Video* workflow (latent upscale straight from the draft latent, no decode / re-encode).\n* If faces / animals drift from the draft, set *Sigmas* `start_sigma` to **0.8** (closer to the draft, less new detail).\n\n**Time:** measured on the RTX PRO 5000: 768P draft ≈ 2 min (6 steps × 16 s), then 2K regenerate ≈ 3 min (Sol-Attn + fast VAE decode) — **≈ 5 min per 5 s clip** warm (+ model loading on a cold start)."
+        "# Open-H3 Regenerate 2K — Prompt to 2K\nTwo passes in one run: **H3 768P draft** (FL2VA + LightX2V Turbo 4-step LoRA, 6 steps er_sde) → **Open-H3-Regenerate** at **2560×1440** (3 steps). Check the draft MP4 first — if the motion is wrong, change the seed before paying for the 2K pass (mute the *REGENERATE* group with Ctrl+M to stop after the draft).\n\n* **Prompt** feeds both passes (the refine reuses the draft's prompt, like the reference).\n* Draft: 1344×768, 124 frames (5 s). Its generated audio is muxed into both MP4s.\n* Regenerate: identical to the *Draft Video* workflow (latent upscale straight from the draft latent, no decode / re-encode).\n* If faces / animals drift from the draft, set *Sigmas* `start_sigma` to **0.8** (closer to the draft, less new detail).\n\nIf decoding ever fails, the refined result is already saved in `output/open_h3_latents/`: run **Open-H3 Regenerate 2K - Decode Saved Latent** instead of starting over.\n\n**Time:** measured on the RTX PRO 5000: 768P draft ≈ 2 min (6 steps × 16 s), then 2K regenerate ≈ 3 min (Sol-Attn + fast VAE decode) — **≈ 5 min per 5 s clip** warm (+ model loading on a cold start)."
       ],
       "color": "#2a2a2a",
       "bgcolor": "#353535"
@@ -253,7 +253,8 @@
           "type": "VAE",
           "links": [
             6,
-            16
+            16,
+            36
           ]
         }
       ],
@@ -694,7 +695,8 @@
           "type": "AUDIO",
           "links": [
             20,
-            35
+            34,
+            39
           ]
         }
       ],
@@ -811,7 +813,8 @@
           "name": "INT",
           "type": "INT",
           "links": [
-            34
+            33,
+            38
           ]
         }
       ],
@@ -1134,14 +1137,14 @@
     },
     {
       "id": 28,
-      "type": "OpenH3RegenFastVAEDecode",
+      "type": "OpenH3SaveRefinedLatent",
       "pos": [
         3080,
         814
       ],
       "size": [
         360,
-        132
+        172
       ],
       "flags": {},
       "order": 27,
@@ -1151,6 +1154,65 @@
           "name": "samples",
           "type": "LATENT",
           "link": 32
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "link": 33,
+          "widget": {
+            "name": "frame_count"
+          }
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "title": "Save refined latent (before decoding)",
+      "properties": {
+        "Node name for S&R": "OpenH3SaveRefinedLatent"
+      },
+      "widgets_values": [
+        121,
+        "open_h3_regen"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 29,
+      "type": "OpenH3RegenFastVAEDecode",
+      "pos": [
+        3480,
+        814
+      ],
+      "size": [
+        360,
+        152
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 35
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 36
         }
       ],
       "outputs": [
@@ -1158,7 +1220,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            33
+            37
           ]
         }
       ],
@@ -1172,10 +1234,10 @@
       ]
     },
     {
-      "id": 29,
+      "id": 30,
       "type": "OpenH3RegenFinish",
       "pos": [
-        3480,
+        3880,
         814
       ],
       "size": [
@@ -1183,18 +1245,18 @@
         172
       ],
       "flags": {},
-      "order": 28,
+      "order": 29,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 33
+          "link": 37
         },
         {
           "name": "frame_count",
           "type": "INT",
-          "link": 34,
+          "link": 38,
           "widget": {
             "name": "frame_count"
           }
@@ -1202,7 +1264,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 35
+          "link": 39
         }
       ],
       "outputs": [
@@ -1210,14 +1272,14 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            36
+            40
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            37
+            41
           ]
         }
       ],
@@ -1231,10 +1293,10 @@
       ]
     },
     {
-      "id": 30,
+      "id": 31,
       "type": "CreateVideo",
       "pos": [
-        3880,
+        4280,
         814
       ],
       "size": [
@@ -1242,18 +1304,18 @@
         200
       ],
       "flags": {},
-      "order": 29,
+      "order": 30,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 36
+          "link": 40
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 37
+          "link": 41
         }
       ],
       "outputs": [
@@ -1261,7 +1323,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            38
+            42
           ]
         }
       ],
@@ -1277,10 +1339,10 @@
       ]
     },
     {
-      "id": 31,
+      "id": 32,
       "type": "SaveVideo",
       "pos": [
-        4280,
+        4680,
         814
       ],
       "size": [
@@ -1288,13 +1350,13 @@
         520
       ],
       "flags": {},
-      "order": 30,
+      "order": 31,
       "mode": 0,
       "inputs": [
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 38
+          "link": 42
         }
       ],
       "outputs": [
@@ -1577,30 +1639,38 @@
     ],
     [
       33,
-      28,
-      0,
-      29,
-      0,
-      "IMAGE"
-    ],
-    [
-      34,
       20,
       0,
-      29,
+      28,
       1,
       "INT"
     ],
     [
-      35,
+      34,
       17,
       0,
-      29,
+      28,
       2,
       "AUDIO"
     ],
     [
+      35,
+      28,
+      0,
+      29,
+      0,
+      "LATENT"
+    ],
+    [
       36,
+      7,
+      0,
+      29,
+      1,
+      "VAE"
+    ],
+    [
+      37,
       29,
       0,
       30,
@@ -1608,18 +1678,42 @@
       "IMAGE"
     ],
     [
-      37,
-      29,
-      1,
+      38,
+      20,
+      0,
       30,
+      1,
+      "INT"
+    ],
+    [
+      39,
+      17,
+      0,
+      30,
+      2,
+      "AUDIO"
+    ],
+    [
+      40,
+      30,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      30,
+      1,
+      31,
       1,
       "AUDIO"
     ],
     [
-      38,
-      30,
-      0,
+      42,
       31,
+      0,
+      32,
       0,
       "VIDEO"
     ]
@@ -1670,7 +1764,7 @@
       "bounding": [
         3040,
         0,
-        1920,
+        2320,
         644
       ],
       "color": "#2f5b52",
@@ -1683,7 +1777,7 @@
       "bounding": [
         3040,
         714,
-        1920,
+        2320,
         690
       ],
       "color": "#7a3b3b",
