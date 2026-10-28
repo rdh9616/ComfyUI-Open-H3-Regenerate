@@ -44,31 +44,30 @@ class LeanNonCausalViTDecoder(NonCausalViTDecoder):
         dev, tb, nh_ = x.device, self.block, self.heads
         s, st = self._shifts(li)
 
-        def qkv(t):
-            h = blk.norm1(t.float()).to(t.dtype)
-            return blk.attn.to_qkv(h)
-
-        q, k, v = _rows(qkv, x).view(B, T, H, W, nh_, 3 * self.dh).chunk(3, -1)
         qg, kg, vg = blk.attn.to_qkv(blk.norm1(g.float()).to(g.dtype)).view(B, nb, S, nh_, 3 * self.dh).chunk(3, -1)
         cos, sin = self._rope(T, H, W, s, st, dev)
         cos, sin = cos.view(1, T, H * W, 1, -1), sin.view(1, T, H * W, 1, -1)
         if blk.attn.norm_q is not None:
             qg, kg = _apply_qk_norm(blk.attn.norm_q, qg), _apply_qk_norm(blk.attn.norm_k, kg)
-        # q / k: qk-norm + rope per frame (contiguous, one clip-sized copy each); v made contiguous once
-        qs = torch.empty(B, T, H, W, nh_, self.dh, device=dev, dtype=x.dtype)
-        ks = torch.empty_like(qs)
+        # q / k / v frame by frame (norm1 + projection + qk-norm + rope are per token), stored in the projection's
+        # dtype (bf16 under autocast, as in the reference) — never a clip-sized fused qkv
+        qs = ks = vs = None
         for t in range(T):
-            qt, kt = q[:, t], k[:, t]
+            h = blk.norm1(x[:, t].float()).to(x.dtype)
+            qt, kt, vt = blk.attn.to_qkv(h).view(B, H, W, nh_, 3 * self.dh).chunk(3, -1)
             if blk.attn.norm_q is not None:
                 qt, kt = _apply_qk_norm(blk.attn.norm_q, qt), _apply_qk_norm(blk.attn.norm_k, kt)
+            if qs is None:
+                qs = torch.empty(B, T, H, W, nh_, self.dh, device=dev, dtype=qt.dtype)
+                ks, vs = torch.empty_like(qs), torch.empty_like(qs)
             rope = (cos[:, t].expand(B, -1, -1, -1), sin[:, t].expand(B, -1, -1, -1))
             qs[:, t] = _apply_rotary_pos_emb_impl(qt.reshape(B, H * W, nh_, self.dh), rope).view(B, H, W, nh_, self.dh)
             ks[:, t] = _apply_rotary_pos_emb_impl(kt.reshape(B, H * W, nh_, self.dh), rope).view(B, H, W, nh_, self.dh)
-        vs = v.contiguous()
-        del q, k, v
+            vs[:, t] = vt
+            del h, qt, kt, vt
 
         # ---- window attention, one temporal window at a time
-        o = torch.empty(B, T, H, W, nh_ * self.dh, device=dev, dtype=x.dtype)
+        o = None
         nt = (T + st + tb - 1) // tb
         for j in range(nt):
             lo, hi = max(0, j * tb - st), min(T, (j + 1) * tb - st)
@@ -85,6 +84,8 @@ class LeanNonCausalViTDecoder(NonCausalViTDecoder):
             Vc = torch.cat([vw, vgw.reshape(B * nwin, 2 * S, nh_, self.dh)], 1).transpose(1, 2)
             kmask = torch.cat([vmask, gmask], 1).repeat(B, 1)[:, None, None, :]
             ow = F.scaled_dot_product_attention(qw.transpose(1, 2), Kc, Vc, attn_mask=kmask).transpose(1, 2)
+            if o is None:
+                o = torch.empty(B, T, H, W, nh_ * self.dh, device=dev, dtype=ow.dtype)
             o[:, lo:hi] = self._unpartition(ow, info, s, off).reshape(B, hi - lo, H, W, nh_ * self.dh)
             del qw, kw, vw, Kc, Vc, ow
 
@@ -98,14 +99,31 @@ class LeanNonCausalViTDecoder(NonCausalViTDecoder):
         og = torch.cat(og, 1)
         del qs, ks, vs
 
-        x = x + _rows(lambda t: blk.attn.to_out(t), o) * blk.scale1
+        x = self._residual(x, o, lambda t: blk.attn.to_out(t) * blk.scale1)
         del o
         g = g + blk.attn.to_out(og) * blk.scale1
-        x = x + self._ff(blk, x) * blk.scale2
+        x = self._residual(x, x, lambda t: self._ff(blk, t) * blk.scale2)
         g = g + self._ff(blk, g) * blk.scale2
         return x, g
 
-    def forward(self, z):
+    @staticmethod
+    def _residual(x, src, fn):
+        """x + fn(src) computed in token chunks and added in place. The reference's out-of-place `x + delta` promotes
+        x to the delta's dtype (fp32: the layer scales are fp32), so x is promoted once before adding in place."""
+        flat_x, flat_src = x.view(-1, x.shape[-1]), src.reshape(-1, src.shape[-1])
+        for start in range(0, flat_x.shape[0], ROWS):
+            delta = fn(flat_src[start:start + ROWS])
+            if delta.dtype != flat_x.dtype and torch.promote_types(flat_x.dtype, delta.dtype) != flat_x.dtype:
+                if src is x:
+                    raise RuntimeError("residual dtype changed mid-update")
+                x = x.to(torch.promote_types(x.dtype, delta.dtype))
+                flat_x = x.view(-1, x.shape[-1])
+            flat_x[start:start + ROWS] += delta
+        return x
+
+    def forward(self, z, sink=None):
+        """Same output as the reference forward. With `sink`, frames are handed over as they are made —
+        sink(first_frame_index, pixels [B, 3, n, 16H, 16W] fp32) — and nothing clip-sized is kept on the device."""
         B, T, _, H, W = z.shape
         tb = self.block
         nb = (T + tb - 1) // tb
@@ -123,7 +141,10 @@ class LeanNonCausalViTDecoder(NonCausalViTDecoder):
             x, g = self._layer(li, blk, x, g)
         # pixels frame by frame; the first latent of every native block keeps its last frame only
         keep = [PATCH_T - (self.frames_to_trim if t % tb == 0 else 0) for t in range(T)]
-        out = torch.empty(B, OUT_CH, sum(keep), H * PATCH, W * PATCH, device=z.device, dtype=torch.float32)
+        out = None
+        if sink is None:
+            out = torch.empty(B, OUT_CH, sum(keep), H * PATCH, W * PATCH, device=z.device, dtype=torch.float32)
+            sink = lambda f, p: out.__setitem__((slice(None), slice(None), slice(f, f + p.shape[2])), p)  # noqa: E731
         f = 0
         for t in range(T):
             xt = self.norm_out(x[:, t])
@@ -131,6 +152,6 @@ class LeanNonCausalViTDecoder(NonCausalViTDecoder):
                 pt = self.proj_out(xt.float())                                   # B, H, W, 3*4*16*16
             pt = pt.view(B, H, W, OUT_CH, PATCH_T, PATCH, PATCH).permute(0, 3, 4, 1, 5, 2, 6)
             pt = pt.reshape(B, OUT_CH, PATCH_T, H * PATCH, W * PATCH)[:, :, PATCH_T - keep[t]:]
-            out[:, :, f:f + keep[t]] = pt
+            sink(f, pt)
             f += keep[t]
         return out

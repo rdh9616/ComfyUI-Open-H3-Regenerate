@@ -531,6 +531,9 @@ class OpenH3RegenFastVAEDecode:
                                 "tooltip": "vae_fast/fast_h3_vae_noncausal_24l.safetensors (StreamRender-H3, 6.5 GB)."}),
             "keep_loaded": ("BOOLEAN", {"default": False,
                                         "tooltip": "Keep the decoder on the GPU after decoding (6.5 GB)."}),
+        }, "optional": {
+            "vae": ("VAE", {"tooltip": "H3 video VAE. Used instead when the clip is too big for the fast decoder on this "
+                                       "GPU (it then decodes tiled, like VAE Decode)."}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -538,46 +541,61 @@ class OpenH3RegenFastVAEDecode:
     CATEGORY = CATEGORY
     DESCRIPTION = ("NVIDIA's fast H3 VAE decoder (StreamRender-H3): the released 36-layer decoder pruned to 24 layers and "
                    "distilled, decoding whole 5-latent blocks with window attention and no tiling. Plain PyTorch "
-                   "(SDPA) engine. Slightly lossy (about 30 dB against the released decoder).")
+                   "(SDPA) engine. Slightly lossy (about 30 dB against the released decoder). VRAM grows with clip "
+                   "size (~26 KB per latent token + 6.5 GB weights: 5 s 2K ≈ 20 GB, 15 s 2K ≈ 47 GB).")
 
-    def decode(self, samples, vae_name, keep_loaded, frames_per_chunk=16):
+    @staticmethod
+    def _native(vae, samples, why):
+        LOG.warning("Open-H3 fast VAE decode: %s - decoding with the connected H3 VAE instead", why)
+        images = vae.decode(samples["samples"])
+        return (images.reshape(-1, *images.shape[-3:]) if images.ndim == 5 else images,)
+
+    def decode(self, samples, vae_name, keep_loaded, vae=None):
         model = _fast_vae(folder_paths.get_full_path_or_raise("vae", vae_name))
         z = samples["samples"]
         z = z.tensors[0] if _nested(z) else z
         if z.ndim != 5 or z.shape[1] != 24:
             raise ValueError(f"expected an H3 video latent [B, 24, T, H, W], got {tuple(z.shape)}")
         device = comfy.model_management.get_torch_device()
-        tokens = z.shape[2] * z.shape[3] * z.shape[4]
-        frames = core.frames_for_latent_t(z.shape[2]) if z.shape[2] > 2 else 4 * z.shape[2]
+        B, _, T, lat_h, lat_w = z.shape
+        frames = 4 * T - 3 * ((T + 4) // 5)                    # the first latent of every 5-latent block gives 1 frame
         weights = sum(p.numel() * p.element_size() for p in model.parameters())
-        need = weights + tokens * 40 * 1024 + frames * z.shape[3] * z.shape[4] * 256 * 3 * 4
+        # x (fp32) + q / k / v / attention output (bf16) for the whole clip + one window's / chunk's temporaries
+        need = weights + T * lat_h * lat_w * 26 * 1024 + 3 * 2 ** 30
         comfy.model_management.free_memory(need, device)
-        model.to(device)
-        if device.type == "cuda":
-            torch.cuda.reset_peak_memory_stats(device)
+        if vae is not None and device.type == "cuda" and need > comfy.model_management.get_free_memory(device):
+            return self._native(vae, samples, f"needs ~{need / 2 ** 30:.0f} GB, "
+                                              f"{comfy.model_management.get_free_memory(device) / 2 ** 30:.0f} GB free")
+        out = torch.empty(B * frames, lat_h * 16, lat_w * 16, 3, device=comfy.model_management.intermediate_device())
+        mean = torch.tensor((.485, .456, .406), device=device).view(1, 3, 1, 1, 1)
+        std = torch.tensor((.229, .224, .225), device=device).view(1, 3, 1, 1, 1)
         started = time.perf_counter()
-        images = []
         try:
+            model.to(device)
+            if device.type == "cuda":
+                torch.cuda.reset_peak_memory_stats(device)
             with torch.inference_mode(), torch.autocast(device.type, dtype=torch.bfloat16):
-                for b in range(z.shape[0]):
-                    pixels = model(z[b:b + 1].to(device, torch.float32).transpose(1, 2)).float()[0]   # 3, F, H, W
-                    mean = torch.tensor((.485, .456, .406), device=device).view(3, 1, 1, 1)
-                    std = torch.tensor((.229, .224, .225), device=device).view(3, 1, 1, 1)
-                    out = torch.empty(pixels.shape[1], pixels.shape[2], pixels.shape[3], 3,
-                                      device=comfy.model_management.intermediate_device())
-                    for start in range(0, pixels.shape[1], frames_per_chunk):
-                        part = pixels[:, start:start + frames_per_chunk] * std + mean
-                        out[start:start + part.shape[1]] = part.clamp(0, 1).permute(1, 2, 3, 0).to(out.device)
-                    images.append(out)
-                    del pixels
+                for b in range(B):
+                    def sink(f, pixels, base=b * frames):         # pixels [1, 3, n, H, W], ImageNet-normalized
+                        part = (pixels * std + mean).clamp_(0, 1)[0].permute(1, 2, 3, 0)
+                        out[base + f:base + f + part.shape[0]].copy_(part)
+                    model(z[b:b + 1].to(device, torch.float32).transpose(1, 2), sink=sink)
             peak = torch.cuda.max_memory_allocated(device) / 2 ** 30 if device.type == "cuda" else 0.0
             LOG.info("Open-H3 fast VAE decode: %s latent -> %d frames in %.1f s, peak %.1f GB", tuple(z.shape),
-                     sum(i.shape[0] for i in images), time.perf_counter() - started, peak)
+                     out.shape[0], time.perf_counter() - started, peak)
+        except torch.OutOfMemoryError:
+            if vae is None:
+                raise RuntimeError(f"fast H3 VAE decoder ran out of VRAM ({tuple(z.shape)} latent, needs ~"
+                                   f"{need / 2 ** 30:.0f} GB): connect the H3 video VAE to this node's `vae` input to "
+                                   "fall back to the tiled decoder automatically") from None
+            out = None
         finally:
             if not keep_loaded:
                 model.to(comfy.model_management.unet_offload_device())
             comfy.model_management.soft_empty_cache()
-        return (torch.cat(images),)
+        if out is None:
+            return self._native(vae, samples, "out of VRAM")
+        return (out,)
 
 
 # ------------------------------------------------------------------ video -> H3 prompt (vision LLM server)

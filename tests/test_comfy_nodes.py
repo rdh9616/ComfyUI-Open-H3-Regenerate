@@ -232,6 +232,11 @@ def check_fast_vae_lean():
         with torch.no_grad():
             a, b = ref_model(z), lean_model(z)
         assert a.shape == b.shape and torch.allclose(a, b, atol=1e-5), (T, H, W, a.shape, b.shape, (a - b).abs().max())
+        streamed = torch.full_like(a, float("nan"))
+        with torch.no_grad():
+            assert lean_model(z, sink=lambda f, p: streamed[:, :, f:f + p.shape[2]].copy_(p)) is None
+        assert torch.equal(streamed, b), (T, H, W)
+        assert a.shape[2] == 4 * T - 3 * ((T + 4) // 5)           # the node's frame count formula
     lean.ROWS = rows
     print("  fast VAE: lean forward == reference forward (5 shapes, shifted layers, partial blocks)")
 

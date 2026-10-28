@@ -53,7 +53,7 @@ node reads it from a checkpoint you already have.
 | **Prepare Draft** | Resamples the draft to 24 fps, cover-scales and centre-crops it to 1344×768 or 1024×576 (portrait drafts get portrait sizes), cuts it to `max_frames`, and holds the last frame up to H3's 17k+5 frame grid. |
 | **Latent Upscale (LBH 3D)** | Runs the H3 latent upscaler straight onto the target grid. 1080P computes 1920×1088. 4K runs two passes, via 2K. Audio in an AV latent passes through. |
 | **Refine Latent** | The AV latent for the refine. The video is re-noised by the sampler; the audio is masked, so ComfyUI keeps it clean at model time 1 (the reference's "audio σ = 0"). The audio is encoded silence by default, or the draft's own soundtrack. |
-| **Fast VAE Decode (StreamRender-H3)** | NVIDIA's fast H3 VAE decoder: the released 36-layer decoder pruned to 24 layers and distilled. It runs NVIDIA's plain-PyTorch path (`fast_vae_decoder.py`, vendored unchanged) through a memory-lean forward (`fast_vae_lean.py`, tested equal to the reference). |
+| **Fast VAE Decode (StreamRender-H3)** | NVIDIA's fast H3 VAE decoder: the released 36-layer decoder pruned to 24 layers and distilled. It runs NVIDIA's plain-PyTorch path (`fast_vae_decoder.py`, vendored unchanged) through a memory-lean forward (`fast_vae_lean.py`, tested equal to the reference). VRAM ≈ 6.5 GB + 26 KB per latent token. The optional `vae` input is a fallback for clips that don't fit. |
 | **Finish Frames** | Trims the padding frames, crops 1088 → 1080 and 2176 → 2160 rows, and cuts the soundtrack to match. |
 | **Video to H3 Prompt (inference server)** | Sends a clip to a vision model on an OpenAI-compatible server (vLLM, SGLang, llama.cpp, LM Studio) as a small 4 fps H.264 video, or as 8 stills. Returns an H3 text-to-video prompt: `integrated_multimodal_description` (`[Shot N]` per take) + `overall_soundscape` + `non_diegetic_music`. |
 
@@ -99,7 +99,9 @@ SoL-Engine.
 
 * Sol-Attn and dense output look the same (34.6 dB PSNR between them).
 * The fast decoder's output is 37.8 dB from ComfyUI's decoder, with no visible difference. Alone it takes 12 s at
-  1080P and 22 s at 2K, with a 29 GB peak.
+  1080P, and at 2K 22 s for 5 s (21 GB peak) and 69 s for 15 s (45 GB peak). Its output is identical to NVIDIA's
+  reference forward on the GPU. Frames stream straight to system RAM. Connect the H3 video VAE to its optional `vae`
+  input and clips too big for the card fall back to ComfyUI's tiled decoder instead of failing.
 * NVIDIA's reference forward of the fast decoder peaks at about 71 GB at 2K. On a 72 GB card it spills into system
   RAM and takes 113 s, which is why the lean forward exists.
 * An NVFP4 base saved only 9% of the refine time and visibly lost skin and moss detail.
