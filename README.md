@@ -81,8 +81,9 @@ Only `forward` is replaced. The modules keep their weights, so ComfyUI's casting
 | Workflow | Use it for |
 |---|---|
 | **Open-H3 Regenerate 2K - Draft Video** | A finished draft regenerated at 2560×1440. The prompt is written by *Video to H3 Prompt*. Set `server_url`, or paste your own prompt into `manual_prompt`. |
-| **Open-H3 Regenerate 2K - Decode Saved Latent** | Both regenerate workflows save the refined result to `output/open_h3_latents/` before decoding (about 150 MB for a 15 s 2K clip). If decoding fails, run this: it turns the newest saved file into the final MP4 in about a minute, without redoing the refine. |
+| **Open-H3 Regenerate 2K - Decode Saved Latent** | The regenerate workflows save the refined result to `output/open_h3_latents/` before decoding (about 150 MB for a 15 s 2K clip). If decoding fails, run this: it turns the newest saved file into the final MP4 in about a minute, without redoing the refine. |
 | **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. Optional first / last frames shape the draft only. The 2K pass gets the same prompt encoded as text only, like NVIDIA's refine, and follows the draft. With frames, set `start_sigma` 0.8: at 0.909 the 2K pass can reshape objects of a frame-pinned draft. |
+| **Open-H3 Regenerate 2K - Ref2VA to 2K** | A reference-conditioned 768P draft on a separate Ref2VA model, then FL2VA regeneration. Start with one image and edit both prompts; see the [Ref2VA guide](docs/ref2va-workflow.md) for model settings, soundtrack routing and comparison results. |
 
 Defaults follow NVIDIA's recipe: merged LoRA at 1.0 + curve branches · LBH upscaler in bf16 · σ 0.909375 → 0.857 →
 0.667 → 0 · Euler · CFG 1 · seed 1766580932 · 121 frames (5 s) · `768p` input size (`576p` for drafts from other
@@ -134,6 +135,7 @@ step. Kijai's conversion (q|k|v fused, SwiGLU halves swapped) matches this pack'
 
 ```bash
 python -I tests/test_core.py [lora_header.json] [pruned_checkpoint.safetensors]
+python -I tests/test_workflows.py
 <ComfyUI python> tests/test_comfy_nodes.py <ComfyUI dir> <scratch dir>
 ```
 The tests cover:
@@ -143,7 +145,8 @@ The tests cover:
   formula, and unpatching restores all weights;
 * the lean fast-VAE forward against NVIDIA's forward on 5 shapes;
 * the prompt node's response cleanup, key handling and media encoding;
-* the refined-latent save / load round trip.
+* the refined-latent save / load round trip;
+* workflow graph consistency, separate draft/refine models and conditioning, and generated-soundtrack routing.
 
 ## Credits
 
