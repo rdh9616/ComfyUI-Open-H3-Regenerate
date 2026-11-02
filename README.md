@@ -82,7 +82,7 @@ Only `forward` is replaced. The modules keep their weights, so ComfyUI's casting
 |---|---|
 | **Open-H3 Regenerate 2K - Draft Video** | A finished draft regenerated at 2560×1440. The prompt is written by *Video to H3 Prompt*. Set `server_url`, or paste your own prompt into `manual_prompt`. |
 | **Open-H3 Regenerate 2K - Decode Saved Latent** | Both regenerate workflows save the refined result to `output/open_h3_latents/` before decoding (about 150 MB for a 15 s 2K clip). If decoding fails, run this: it turns the newest saved file into the final MP4 in about a minute, without redoing the refine. |
-| **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. |
+| **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. Optional first / last frames shape the draft only. The 2K pass gets the same prompt encoded as text only, like NVIDIA's refine, and follows the draft. With frames, set `start_sigma` 0.8: at 0.909 the 2K pass can reshape objects of a frame-pinned draft. |
 
 Defaults follow NVIDIA's recipe: merged LoRA at 1.0 + curve branches · LBH upscaler in bf16 · σ 0.909375 → 0.857 →
 0.667 → 0 · Euler · CFG 1 · seed 1766580932 · 121 frames (5 s) · `768p` input size (`576p` for drafts from other
