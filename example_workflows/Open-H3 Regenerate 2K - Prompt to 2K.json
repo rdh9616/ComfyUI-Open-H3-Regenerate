@@ -23,7 +23,7 @@
       "title": "START HERE",
       "properties": {},
       "widgets_values": [
-        "# Open-H3 Regenerate 2K — Prompt to 2K\nTwo passes in one run: **H3 768P draft** (FL2VA + LightX2V Turbo 4-step LoRA, 6 steps er_sde) → **Open-H3-Regenerate** at **2560×1440** (3 steps). Check the draft MP4 first — if the motion is wrong, change the seed before paying for the 2K pass (mute the *REGENERATE* group with Ctrl+M to stop after the draft).\n\n* **Prompt** feeds both passes. The 2K pass encodes it as text only, like NVIDIA's reference refine.\n* **First / last frame** (optional, on the 768P draft node) shape the draft only; the 2K pass follows the draft. **With frames, set *Sigmas* `start_sigma` to 0.8**: at the default 0.909 the 2K pass reshaped objects of a frame-pinned draft in tests (glass mushrooms fused), while 0.8 and 0.7 kept them.\n* Draft: 1344×768, 124 frames (5 s). Its generated audio is muxed into both MP4s.\n* Regenerate: identical to the *Draft Video* workflow (latent upscale straight from the draft latent, no decode / re-encode).\n* If faces / animals drift from the draft, set *Sigmas* `start_sigma` to **0.8** (closer to the draft, less new detail).\n\nIf decoding ever fails, the refined result is already saved in `output/open_h3_latents/`: run **Open-H3 Regenerate 2K - Decode Saved Latent** instead of starting over.\n\n**Time:** measured on the RTX PRO 5000: 768P draft ≈ 2 min (6 steps × 16 s), then 2K regenerate ≈ 3 min (Sol-Attn + fast VAE decode) — **≈ 5 min per 5 s clip** warm (+ model loading on a cold start)."
+        "# Open-H3 Regenerate 2K — Prompt to 2K\nTwo passes in one run: **H3 768P draft** (FL2VA + LightX2V Turbo 4-step LoRA, 6 steps er_sde) → **Open-H3-Regenerate** at **2560×1440** (3 steps). Check the draft MP4 first — if the motion is wrong, change the seed before paying for the 2K pass (mute the *REGENERATE* group with Ctrl+M to stop after the draft).\n\n* **Prompt** feeds both passes. The 2K pass encodes it as text only, like NVIDIA's reference refine.\n* **First / last frame** (optional, on the 768P draft node) shape the draft only; the 2K pass follows the draft. *Sigmas* now defaults to **0.8**: at 0.909 the 2K pass reshaped objects of a frame-pinned draft in tests (glass mushrooms fused), while 0.8 and 0.7 kept them. Set `start_sigma` **0** to restore NVIDIA's release grid.\n* Draft: 1344×768, 124 frames (5 s). Its generated audio is muxed into both MP4s.\n* Regenerate: identical to the *Draft Video* workflow (latent upscale straight from the draft latent, no decode / re-encode).\n* The 0.8 default stays closer to the draft, with less new detail, but identity can still drift. The last evaluation (sigma 0.48) runs dense under the existing Sol-Attn cutoff, so the release-schedule timing below does not predict this default's runtime.\n\nIf decoding ever fails, the refined result is already saved in `output/open_h3_latents/`: run **Open-H3 Regenerate 2K - Decode Saved Latent** instead of starting over.\n\n**Time:** measured with the **release sigma grid**, not the new 0.8 default, on the RTX PRO 5000: 768P draft ≈ 2 min (6 steps × 16 s), then 2K regenerate ≈ 3 min (Sol-Attn + fast VAE decode) — **≈ 5 min per 5 s clip** warm (+ model loading on a cold start)."
       ],
       "color": "#2a2a2a",
       "bgcolor": "#353535"
@@ -1052,7 +1052,7 @@
       },
       "widgets_values": [
         3,
-        0.0
+        0.8
       ],
       "color": "#432",
       "bgcolor": "#653"

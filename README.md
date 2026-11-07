@@ -7,7 +7,7 @@ steps**, on ComfyUI's native MiniMax H3 model.
 
 ```
 draft ─► H3 VAE encode ─► H3-Latent-Upscaler (LBH 3D) onto the target grid
-      ─► re-noise to σ 0.909375 ─► 3 Euler steps (0.909375 → 0.857 → 0.667 → 0), CFG 1
+      ─► re-noise to σ 0.8 ─► 3 Euler steps (0.8 → 0.686 → 0.48 → 0), CFG 1
          FL2VA + merged LoRA (refiner + LightX2V FL2VA Turbo + LMS Sharp) + 50 Sharp curve branches,
          audio held as encoded silence
       ─► fast H3 VAE decoder (StreamRender-H3)
@@ -82,24 +82,29 @@ Only `forward` is replaced. The modules keep their weights, so ComfyUI's casting
 |---|---|
 | **Open-H3 Regenerate 2K - Draft Video** | A finished draft regenerated at 2560×1440. The prompt is written by *Video to H3 Prompt*. Set `server_url`, or paste your own prompt into `manual_prompt`. |
 | **Open-H3 Regenerate 2K - Decode Saved Latent** | The regenerate workflows save the refined result to `output/open_h3_latents/` before decoding (about 150 MB for a 15 s 2K clip). If decoding fails, run this: it turns the newest saved file into the final MP4 in about a minute, without redoing the refine. |
-| **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. Optional first / last frames shape the draft only. The 2K pass gets the same prompt encoded as text only, like NVIDIA's refine, and follows the draft. With frames, set `start_sigma` 0.8: at 0.909 the 2K pass can reshape objects of a frame-pinned draft. |
+| **Open-H3 Regenerate 2K - Prompt to 2K** | A prompt turned into an H3 768P draft (FL2VA + LightX2V Turbo 4-step, 6 steps er_sde), then into 2K, in one run. Optional first / last frames shape the draft only. The 2K pass gets the same prompt encoded as text only, like NVIDIA's refine, and follows the draft. The `start_sigma` 0.8 default redraws less; at 0.909 the 2K pass can reshape objects of a frame-pinned draft. |
 | **Open-H3 Regenerate 2K - Ref2VA to 2K** | A reference-conditioned 768P draft on a separate Ref2VA model, then FL2VA regeneration. Start with one image and edit both prompts; see the [Ref2VA guide](docs/ref2va-workflow.md) for model settings, soundtrack routing and comparison results. |
 
-Defaults follow NVIDIA's recipe: merged LoRA at 1.0 + curve branches · LBH upscaler in bf16 · σ 0.909375 → 0.857 →
-0.667 → 0 · Euler · CFG 1 · seed 1766580932 · 121 frames (5 s) · `768p` input size (`576p` for drafts from other
-models). ComfyUI's built-in *Model Sparse Attention* (Sol-Attn) is **on**, and all three steps run sparse, as in
-SoL-Engine.
+All three generation examples default to **`start_sigma=0.8`**, to stay closer to the draft:
+σ 0.8 → 0.686 → 0.48 → 0. Set `start_sigma=0` to restore NVIDIA's release grid
+(0.909375 → 0.857 → 0.667 → 0). They retain the merged LoRA at 1.0 + curve branches,
+LBH upscaler in bf16, Euler, CFG 1 and refine seed 1766580932. Draft Video keeps 121 frames;
+the prompt and Ref2VA drafts generate 124. Use `768p` input size (`576p` for drafts from other models).
+ComfyUI's *Model Sparse Attention* (Sol-Attn) is **on**: at 0.8 the last evaluation runs dense
+under the existing cutoff; the release grid keeps eligible attention sparse in all three steps.
 
 ## Speed (RTX PRO 5000 Blackwell 72 GB, Windows, ComfyUI 0.42)
 
-5 s clip (121 frames), 768P → 2560×1440, int8 FL2VA pruned base:
+Measurements below use the **release sigma grid**, not the new 0.8 default:
+5 s clip (121 frames), 768P → 2560×1440, int8 FL2VA pruned base.
+See the [Ref2VA comparison](docs/ref2va-workflow.md#validation-and-comparison) for measured 0.8 runs.
 
 | Configuration | Refine (3 steps) | VAE decode | Whole run |
 |---|---|---|---|
-| Workflow defaults: Sol-Attn + fast VAE decoder | **122 s** | **24 s** | **≈ 3 min** warm (206 s cold) |
+| Release grid: Sol-Attn + fast VAE decoder | **122 s** | **24 s** | **≈ 3 min** warm (206 s cold) |
 | Sol-Attn + ComfyUI's own VAE decode | 122 s | 50 s | ≈ 3.5 min |
 | Dense attention + ComfyUI's own VAE decode | 474 s | 50 s | ≈ 9.5 min |
-| Prompt → 768P draft (6 × 16 s) → 2K, defaults | 122 s | 24 s | ≈ 5 min |
+| Prompt → 768P draft (6 × 16 s) → 2K, release grid | 122 s | 24 s | ≈ 5 min |
 
 * Sol-Attn and dense output look the same (34.6 dB PSNR between them).
 * The fast decoder's output is 37.8 dB from ComfyUI's decoder, with no visible difference. Alone it takes 12 s at
@@ -113,7 +118,7 @@ SoL-Engine.
 
 ## Results and a caveat
 
-On NVIDIA's own demo draft (the glass mushroom from the project page), the 2K output with the defaults closely matches
+On NVIDIA's own demo draft (the glass mushroom from the project page), the 2K output with the release grid closely matches
 their published result: the same new skin texture and the same reflections in the glass.
 
 At σ 0.909 the refine redraws a lot. In one test a small fox face drifted toward a wolf (darker coat, lost ear tips)

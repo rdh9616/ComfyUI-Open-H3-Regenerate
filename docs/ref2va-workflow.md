@@ -46,10 +46,30 @@ This repository does not include or download it. The supplied eight-step
 settings apply to that preset; other Ref2VA checkpoints were not validated in
 this comparison.
 
+### Which model goes where?
+
+| Role | Model |
+|---|---|
+| 768P draft loader | Ref2VA. The supplied settings were tested with the fused turbo8 preset above. |
+| 2K refine loader | FL2VA with the released Open-H3 merged LoRA and Sharp curves. |
+| Curve-table file inside the LoRA node | The pruned Ref2VA checkpoint; only its `adaln_t_table` is read. This does not change the refine model to Ref2VA. |
+
+`minimax_h3_ref2va_pruned_int8_convrot.safetensors` is a Ref2VA-family checkpoint
+for the draft role, but its sampling recipe was not tested here. Do not assume
+the fused preset's eight-step settings also apply to that base checkpoint.
+Replacing the FL2VA refine base with Ref2VA is outside this example's validation.
+
+This workflow combines a reference-conditioned draft with FL2VA regeneration;
+it does not provide a Ref2VA-trained regeneration adapter. In the linked
+[upstream Ref2VA request](https://huggingface.co/Efficient-Large-Model/Open-H3-Regenerate-2K/discussions/9),
+Gao Sensen said on 2026-11-04 that the model was forthcoming. That reply does not
+establish compatibility of the existing FL2VA refiner with a Ref2VA base.
+
 The draft is 1344 × 768 with 124 frames at 24 fps, about 5.17 seconds. Refinement
 uses FL2VA, the merged Open-H3 refiner/Turbo/Sharp LoRA and Sharp curves, the LBH
-latent upscaler, Sol-Attn, 3 Euler steps and CFG 1. A `start_sigma` value of zero
-selects the release schedule beginning at 0.909375; 0.8 redraws less of the draft.
+latent upscaler, Sol-Attn, 3 Euler steps and CFG 1. The selected default is
+**fresh text-only refine conditioning and `start_sigma=0.8`**, which redraws less
+of the draft. A value of zero restores the release schedule beginning at 0.909375.
 
 Reference blocks use their own spatial grids, unlike first/last keyframes. This
 does not establish that keeping references in an FL2VA refine preserves identity
@@ -94,7 +114,8 @@ automatic attention change.
 At the sampled frames, 0.8 retains more of the draft's headdress structure. Keeping
 reference conditioning offers no clear improvement here. Every variant still
 changes facial details. This is one clip and seed, with no general identity or
-temporal-quality guarantee. Human selection of the shipping default is pending.
+temporal-quality guarantee. Text-only refinement at 0.8 was selected as the
+shipping default.
 
 ![Draft and four refinements at 2.5 seconds](ref2va_detail.png)
 
@@ -104,4 +125,6 @@ The figures contain generated results only, derived from the public demo referen
 The workflow imported without missing node classes and completed end to end.
 Core tests, tiny native-model CPU checks and workflow routing checks passed;
 seven mutations confirmed the checks reject conditioning, model and soundtrack
-regressions. Rebuilding preserves the three existing workflows byte for byte.
+regressions. The finalization also sets Draft Video and Prompt to 2K to 0.8 and
+updates their notes. Decode Saved Latent is unchanged. The November 2 GPU results
+above remain the measured evidence; changing these defaults did not rerun them.
