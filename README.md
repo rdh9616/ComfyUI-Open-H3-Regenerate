@@ -25,6 +25,16 @@ The additive **IC draft-conditioning nodes** are documented in the
 their IC/HyperFlow sampler and example-workflow integration must be validated together. Existing workflows retain
 the original Regenerate path and defaults. CPU contract checks alone are not an end-to-end IC quality result.
 
+The [IC setup guide](docs/ic-setup.md) and [pinned asset manifest](weights/ic-manifest.json) identify the separate
+full Ref2VA base, IC/Sharp/HyperFlow weights and validation limits. `tools/check_ic_weights.py` checks existing
+files without downloading or changing them. The endpoint-aware HyperFlow workflow is still an integration gate;
+an explicit sigma list by itself does not implement HyperFlow.
+
+[IC Decode Saved Latent](example_workflows/Open-H3%20IC%20-%20Decode%20Saved%20Latent.json) recovers an already-saved
+result with the standard video VAE, stored frame count and original audio. Select the exact IC file before running.
+The fast decoder's native fallback now extracts the video from an AV latent; this also fixes the existing legacy
+fallback when its memory check or an out-of-memory error selects the standard VAE.
+
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/rdh9616/ComfyUI-Open-H3-Regenerate

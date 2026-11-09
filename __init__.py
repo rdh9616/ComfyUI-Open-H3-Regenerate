@@ -548,7 +548,8 @@ class OpenH3RegenFastVAEDecode:
     @staticmethod
     def _native(vae, samples, why):
         LOG.warning("Open-H3 fast VAE decode: %s - decoding with the connected H3 VAE instead", why)
-        images = vae.decode(samples["samples"])
+        latent = samples["samples"]
+        images = vae.decode(latent.tensors[0] if _nested(latent) else latent)
         return (images.reshape(-1, *images.shape[-3:]) if images.ndim == 5 else images,)
 
     def decode(self, samples, vae_name, keep_loaded, vae=None):

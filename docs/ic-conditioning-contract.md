@@ -71,6 +71,12 @@ The HyperFlow adapter must give target rows endpoint `r=1-sigma_next`; reference
 It needs the actual next sigma from the selected trained IC grid. Sharp curves use current t, never r. Do not
 substitute the old shift-6 Regenerate grid or use a pruned checkpoint lacking `time_embedder`.
 
+Upstream maps endpoints by distinct timestep, so Qwen context sharing the target's current time also shares its
+endpoint. The blended embedding must reach both the transformer blocks and the final output layer. Its formula
+is `base(t) + gate * (endpoint(r) - base(t))`; preserved rows with `r=t` still use a separately adapted endpoint
+embedder, so their endpoint contribution is not generally zero. These are sampler integration requirements,
+not a claim that the conditioning nodes implement HyperFlow.
+
 Native reference noise is a deterministic CPU RNG over patchified rows. Upstream IC uses its GPU generator.
 The distributions and fixed-per-run behavior match; equal integer seeds alone do **not** imply identical random
 tensors or bitwise-identical full-pipeline output. End-to-end comparisons must disclose this distinction.
