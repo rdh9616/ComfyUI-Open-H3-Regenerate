@@ -289,14 +289,21 @@ class OpenH3RegenSigmas:
             "start_sigma": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001,
                                       "tooltip": "0 = the release grid for 2 / 3 steps. Above 0: the refiner's shift-6 "
                                                  "grid from this start noise (e.g. 0.8 for the resolution ladder)."}),
+        }, "optional": {
+            "explicit_sigmas": ("STRING", {"default": "",
+                                           "tooltip": "Comma-separated sigmas that override steps and start_sigma, "
+                                                      "e.g. 0.8349423898, 0.6968520491, 0.4687533149, 0.0 — HyperFlow's "
+                                                      "last three raw grid points shifted by 12. Must decrease strictly "
+                                                      "and end at 0. Some schedules cannot be reached any other way: "
+                                                      "shift-6 spacing from a start is uniform, HyperFlow's is not."}),
         }}
 
     RETURN_TYPES = ("SIGMAS",)
     FUNCTION = "sigmas"
     CATEGORY = CATEGORY
 
-    def sigmas(self, steps, start_sigma):
-        return (torch.tensor(core.refine_sigmas(steps, start_sigma), dtype=torch.float32),)
+    def sigmas(self, steps, start_sigma, explicit_sigmas=""):
+        return (torch.tensor(core.refine_sigmas(steps, start_sigma, explicit_sigmas), dtype=torch.float32),)
 
 
 # ------------------------------------------------------------------ frames

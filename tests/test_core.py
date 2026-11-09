@@ -38,6 +38,62 @@ def test_sigmas():
         pass
 
 
+def test_explicit_sigmas_override():
+    # HyperFlow's last three nonzero raw grid points, each shifted by 12x/(1+11x).
+    hyperflow = "0.8349423898, 0.6968520491, 0.4687533149, 0.0"
+    want = [0.8349423898, 0.6968520491, 0.4687533149, 0.0]
+    close(core.refine_sigmas(3, 0.0, hyperflow), want, 1e-9)
+    # Empty explicit leaves every existing path untouched.
+    close(core.refine_sigmas(3), core.SCHEDULES[3])
+    close(core.refine_sigmas(3, 0.0, ""), core.SCHEDULES[3])
+    close(core.refine_sigmas(3, 0.8), core.refine_sigmas(3, 0.8))
+    # And this is the point: no start_sigma reproduces it, because shift-6 spacing is uniform.
+    for shift_start in (0.8349423898, 0.835, 0.839236):
+        got = core.refine_sigmas(3, shift_start)
+        assert not all(abs(a - b) < 1e-6 for a, b in zip(got, want)), (
+            f"start_sigma={shift_start} unexpectedly reproduced the HyperFlow grid")
+    for bad in (
+        "0.5",                     # too few values
+        "0.5, 0.6, 0.0",           # not decreasing
+        "0.5, 0.4, 0.1",           # does not end at 0
+        "0.9, 0.5",                # does not end at 0
+        "nan,0",                   # NaN makes every comparison False
+        "0.8,nan,0",               # NaN in the middle
+        "inf,0",                   # non-finite
+        "1.2,0",                   # above 1
+        "-0.1,0",                  # below 0
+    ):
+        try:
+            core.refine_sigmas(3, 0.0, bad)
+            raise AssertionError(f"explicit_sigmas {bad!r} should raise")
+        except ValueError:
+            pass
+
+
+def test_explicit_sigmas_rejects_non_finite_and_out_of_range():
+    """Finiteness and range are checked before ordering, and this pins why.
+
+    `nan` compares False against everything, so a NaN would pass a strict-decreasing
+    check; an out-of-range sigma can overflow sampling downstream. Neither is a schedule,
+    and both must fail loudly at parse time rather than poisoning a run.
+    """
+    import math as _math
+    for text in ("nan,0", "0.8,nan,0", "nan,nan,0", "inf,0", "-inf,0", "1.0001,0", "-0.0001,0"):
+        try:
+            parsed = core.refine_sigmas(3, 0.0, text)
+        except ValueError:
+            continue
+        raise AssertionError(f"{text!r} parsed to {parsed!r} but should have raised")
+    # Boundary values that ARE legal must still be accepted.
+    close(core.refine_sigmas(3, 0.0, "1.0, 0.5, 0.0"), [1.0, 0.5, 0.0])
+    # Whitespace padding must not turn valid input into an error either.
+    try:
+        core.refine_sigmas(3, 0.0, " 0.8 , 0.4 , 0.0 ")
+    except ValueError as exc:
+        raise AssertionError(f"whitespace-padded valid input raised: {exc}")
+    assert all(_math.isfinite(v) for v in core.refine_sigmas(3, 0.0, "0.8, 0.4, 0.0"))
+
+
 def test_frames():
     assert core.align_frame_count(121) == 124 and core.video_latent_t(124) == 37
     assert core.align_frame_count(360) == 362 and core.video_latent_t(362) == 107
