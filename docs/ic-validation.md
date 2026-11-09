@@ -12,6 +12,13 @@ Recorded 2026-11-09. This is a staged validation record, not a completed IC rele
 | Native IC up3 workflow and matched native-versus-legacy comparison | Pending the adapter/merge; no native IC denoising result is claimed. |
 | Matched pinned-upstream IC comparison | Pending a human decision on the original BF16 base and separate upstream runtime. Coordinator approved this staged handoff; no environment or base download was performed. |
 
+The separate explicit-sigma change in PR #7 (`b922797`) was reviewed in a private integration with this draft
+(`335375b`). Nonfinite and out-of-range parser probes were rejected after its fix, and its six core checks passed.
+The unchanged 28-node legacy Draft Video example imported in isolated CPU ComfyUI with steps=3, start_sigma=0.8
+and the new explicit_sigmas field blank. The expected missing-input-video warning remained; no job was queued.
+This establishes that example's widget compatibility, not endpoint behavior or a render result. PR #7's code is
+not included in this draft branch by this check.
+
 ## Public comparison input and caption
 
 The input is [U06 from the pinned Sana-assets revision](https://huggingface.co/datasets/Efficient-Large-Model/Sana-assets/resolve/1a95af6fb9c7c5e20e12ace64928322f430304c1/Open-H3-Regenerate-2K/assets/sol-engine/ic/U06-input.mp4):
