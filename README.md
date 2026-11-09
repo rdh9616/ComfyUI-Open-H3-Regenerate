@@ -20,6 +20,11 @@ OpenAI-compatible server.
 
 ## Install
 
+The additive **IC draft-conditioning nodes** are documented in the
+[IC conditioning contract](docs/ic-conditioning-contract.md). They use a separate 124-frame, 2K Ref2VA path;
+their IC/HyperFlow sampler and example-workflow integration must be validated together. Existing workflows retain
+the original Regenerate path and defaults. CPU contract checks alone are not an end-to-end IC quality result.
+
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/rdh9616/ComfyUI-Open-H3-Regenerate

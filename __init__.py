@@ -820,3 +820,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OpenH3RegenRefineLatent": "Open-H3 Regenerate · Refine Latent",
     "OpenH3RegenFinish": "Open-H3 Regenerate · Finish Frames",
 }
+
+# IC is additive: loading an existing workflow retains its original nodes and defaults.
+from .ic_nodes import NODE_CLASS_MAPPINGS as IC_NODES, NODE_DISPLAY_NAME_MAPPINGS as IC_NAMES
+
+NODE_CLASS_MAPPINGS.update(IC_NODES)
+NODE_DISPLAY_NAME_MAPPINGS.update(IC_NAMES)
