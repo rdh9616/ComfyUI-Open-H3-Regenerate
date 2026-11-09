@@ -52,12 +52,46 @@ def test_explicit_sigmas_override():
         got = core.refine_sigmas(3, shift_start)
         assert not all(abs(a - b) < 1e-6 for a, b in zip(got, want)), (
             f"start_sigma={shift_start} unexpectedly reproduced the HyperFlow grid")
-    for bad in ("0.5", "0.5, 0.6, 0.0", "0.5, 0.4, 0.1", "0.9, 0.5"):
+    for bad in (
+        "0.5",                     # too few values
+        "0.5, 0.6, 0.0",           # not decreasing
+        "0.5, 0.4, 0.1",           # does not end at 0
+        "0.9, 0.5",                # does not end at 0
+        "nan,0",                   # NaN makes every comparison False
+        "0.8,nan,0",               # NaN in the middle
+        "inf,0",                   # non-finite
+        "1.2,0",                   # above 1
+        "-0.1,0",                  # below 0
+    ):
         try:
             core.refine_sigmas(3, 0.0, bad)
             raise AssertionError(f"explicit_sigmas {bad!r} should raise")
         except ValueError:
             pass
+
+
+def test_explicit_sigmas_rejects_non_finite_and_out_of_range():
+    """Finiteness and range are checked before ordering, and this pins why.
+
+    `nan` compares False against everything, so a NaN would pass a strict-decreasing
+    check; an out-of-range sigma can overflow sampling downstream. Neither is a schedule,
+    and both must fail loudly at parse time rather than poisoning a run.
+    """
+    import math as _math
+    for text in ("nan,0", "0.8,nan,0", "nan,nan,0", "inf,0", "-inf,0", "1.0001,0", "-0.0001,0"):
+        try:
+            parsed = core.refine_sigmas(3, 0.0, text)
+        except ValueError:
+            continue
+        raise AssertionError(f"{text!r} parsed to {parsed!r} but should have raised")
+    # Boundary values that ARE legal must still be accepted.
+    close(core.refine_sigmas(3, 0.0, "1.0, 0.5, 0.0"), [1.0, 0.5, 0.0])
+    # Whitespace padding must not turn valid input into an error either.
+    try:
+        core.refine_sigmas(3, 0.0, " 0.8 , 0.4 , 0.0 ")
+    except ValueError as exc:
+        raise AssertionError(f"whitespace-padded valid input raised: {exc}")
+    assert all(_math.isfinite(v) for v in core.refine_sigmas(3, 0.0, "0.8, 0.4, 0.0"))
 
 
 def test_frames():

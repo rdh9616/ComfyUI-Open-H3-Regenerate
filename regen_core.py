@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import math
 import re
 
 import torch
@@ -41,10 +42,19 @@ def parse_explicit_sigmas(text):
     Kept separate from refine_sigmas because some schedules cannot be expressed as
     (start_sigma, shift) at all: HyperFlow's interior points are individually shifted raw
     grid values, not uniform spacing from a start.
+
+    Finiteness and range are checked before ordering on purpose: `nan` makes every
+    comparison False, so a NaN would slip through the strict-decreasing test, and an
+    out-of-range value can overflow sampling downstream. Neither is a schedule.
     """
     values = [float(part) for part in text.replace(";", ",").split(",") if part.strip()]
     if len(values) < 2:
         raise ValueError("explicit_sigmas needs at least a start and a final 0")
+    for value in values:
+        if not math.isfinite(value):
+            raise ValueError(f"explicit_sigmas values must be finite, got {value!r}")
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"explicit_sigmas values must lie in [0, 1], got {value!r}")
     if values[-1] != 0.0:
         raise ValueError("explicit_sigmas must end at 0.0")
     for earlier, later in zip(values, values[1:]):
