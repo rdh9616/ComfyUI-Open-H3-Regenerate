@@ -1,0 +1,243 @@
+{
+  "recorded_date": "2026-11-09",
+  "node_pack_commit": "a4888a5d66d4b1370e7626fe0376ee57080d491e",
+  "comfy_commit": "b5a432157de6b8884f81104cd02926adf4d597e4",
+  "harness_sha256": "b5fb7b193482af8014216a5a3949d9c5e725bd7c05c8eb9e0433988a193c192f",
+  "measurement": {
+    "variant": "legacy_0.8",
+    "seed": 42,
+    "caption": "A woman with long braids with gold accents, gold hoop earrings and layered gold necklaces wears a dark teal velvet jacket against a plain dark teal studio background. In a steady chest-up portrait she speaks toward the camera, with subtle head movements and a changing smile. Soft even studio lighting.",
+    "caption_provenance": "authored for both native comparisons",
+    "input_sha256": "9fc727dc84cd872991350de93c8e57e6f732df607b0d88ef0a0236409b34a079",
+    "models": {
+      "base": [
+        "diffusion_models",
+        "H3/minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+      ],
+      "lora": [
+        "loras",
+        "H3/Open-H3-Regenerate-2K/open_h3_regenerate_2k_lora.safetensors"
+      ],
+      "curves": [
+        "loras",
+        "H3/Open-H3-Regenerate-2K/sharp_curve_branches.safetensors"
+      ],
+      "curve_table": [
+        "diffusion_models",
+        "H3/minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+      ],
+      "text": [
+        "text_encoders",
+        "H3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+      ],
+      "video_vae": [
+        "vae",
+        "minimax_h3_video_vae_fp16.safetensors"
+      ],
+      "audio_vae": [
+        "vae",
+        "minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "upscaler": [
+        "latent_upscale_models",
+        "minimax_h3_latent_upscaler_3d_conv_v1_fp32.pth"
+      ]
+    },
+    "model_formats": {
+      "base": "int8 convrot",
+      "text": "official NVFP4 AWQ",
+      "video_vae_storage": "fp16",
+      "vae_compute": "fp32",
+      "lora_compute": "bf16"
+    },
+    "sigmas": [
+      0.800000011920929,
+      0.6857143044471741,
+      0.47999998927116394,
+      0.0
+    ],
+    "sampler": "euler",
+    "cfg": 1,
+    "decoder": "standard H3 VAE",
+    "sparse_attention": {
+      "mode": "sol-attn",
+      "tau": 1.2,
+      "start_percent": 0,
+      "end_percent": 0.9,
+      "dense_blocks": "0,1,49",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows"
+    },
+    "stages": {
+      "load_text": {
+        "seconds": 8.974437800236046,
+        "peak_cuda_allocated_bytes": 17241537536
+      },
+      "text_conditioning": {
+        "seconds": 0.5172167997807264,
+        "peak_cuda_allocated_bytes": 17241537536
+      },
+      "load_video_vae": {
+        "seconds": 2.8525331001728773,
+        "peak_cuda_allocated_bytes": 17241537536
+      },
+      "encode_mode": {
+        "seconds": 38.392204199917614,
+        "peak_cuda_allocated_bytes": 29752598016
+      },
+      "upscale": {
+        "seconds": 4.43807170027867,
+        "peak_cuda_allocated_bytes": 30124342272
+      },
+      "load_audio_vae": {
+        "seconds": 0.24450310040265322,
+        "peak_cuda_allocated_bytes": 30124342272
+      },
+      "legacy_silence": {
+        "seconds": 0.18726980034261942,
+        "peak_cuda_allocated_bytes": 30124342272
+      },
+      "load_transformer": {
+        "seconds": 2.8310994999483228,
+        "peak_cuda_allocated_bytes": 30124342272
+      },
+      "load_lora_curves": {
+        "seconds": 14.58556090015918,
+        "peak_cuda_allocated_bytes": 30124342272
+      },
+      "sample": {
+        "seconds": 274.72277310024947,
+        "peak_cuda_allocated_bytes": 36179198976
+      },
+      "save_latent": {
+        "seconds": 0.028020199853926897,
+        "peak_cuda_allocated_bytes": 36179198976
+      },
+      "decode": {
+        "seconds": 247.23184410016984,
+        "peak_cuda_allocated_bytes": 36179198976
+      },
+      "save_video": {
+        "seconds": 5.809517300222069,
+        "peak_cuda_allocated_bytes": 36179198976
+      }
+    },
+    "status": "complete",
+    "real_frames": 121,
+    "padded_frames": 124,
+    "source_fps": 24.0,
+    "target": [
+      2560,
+      1440
+    ],
+    "lora_report": "LoRA open_h3_regenerate_2k_lora.safetensors: 312 modules (312 weight patches), strength 1, bf16\nSharp curve branches: 50 at 1, reference table; model time read back from the model's own curve, branches use the reference curve",
+    "output_frames": 121,
+    "output_shape": [
+      121,
+      1440,
+      2560,
+      3
+    ],
+    "total_seconds": 606.3553220001049,
+    "peak_cuda_allocated_bytes": 36179198976
+  },
+  "legacy_asset_hashes": [
+    {
+      "filename": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "bytes": 20970379616,
+      "sha256": "e889202c41dafb67b10d67b97f0d8541508036a6090af23425a5c2615d03c47a"
+    },
+    {
+      "filename": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "bytes": 20970379616,
+      "sha256": "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779"
+    },
+    {
+      "filename": "open_h3_regenerate_2k_lora.safetensors",
+      "bytes": 12452449080,
+      "sha256": "8e36a0912ab72f7f3b00f41e3c7c97c7dfdec21e66c88ab22f08b9b0c681bb04"
+    },
+    {
+      "filename": "sharp_curve_branches.safetensors",
+      "bytes": 1238746768,
+      "sha256": "26ff1c4ea50fc5b0cea252912b67ec308a65d534cef026ef56f415ae92102e4e"
+    }
+  ],
+  "artifacts": [
+    {
+      "filename": "U06-input.mp4",
+      "sha256": "9fc727dc84cd872991350de93c8e57e6f732df607b0d88ef0a0236409b34a079",
+      "width": 1344,
+      "height": 768,
+      "fps": "24",
+      "frames": 121,
+      "has_audio": true,
+      "container_metadata": {
+        "major_brand": "isom",
+        "minor_version": "512",
+        "compatible_brands": "isomiso2avc1mp41",
+        "encoder": "Lavf58.29.100"
+      }
+    },
+    {
+      "filename": "legacy_u06_seed42_00001_.mp4",
+      "sha256": "4d8d82bcd343daff4532f98d1d4a080dae9a70231d2567cad97aa099593e7610",
+      "width": 2560,
+      "height": 1440,
+      "fps": "24",
+      "frames": 121,
+      "has_audio": true,
+      "container_metadata": {
+        "major_brand": "isom",
+        "minor_version": "512",
+        "compatible_brands": "isomiso2avc1mp41",
+        "encoder": "Lavf62.12.102"
+      }
+    },
+    {
+      "filename": "U06-ic.mp4",
+      "sha256": "e57b5e82a99f9ec83235fe366e416f53a7a9ce1ff74179911810d329e83bc30a",
+      "width": 2560,
+      "height": 1440,
+      "fps": "24",
+      "frames": 124,
+      "has_audio": false,
+      "container_metadata": {
+        "major_brand": "isom",
+        "minor_version": "512",
+        "compatible_brands": "isomiso2avc1mp41",
+        "encoder": "Lavf61.1.100"
+      }
+    },
+    {
+      "saved_latent_sha256": "85e88067bf636ab0800d2e72d96f3e48459bbb11ca23e34b7b029cdd42709bbb",
+      "metadata": {
+        "frame_count": "121",
+        "sample_rate": "32000",
+        "format": "open_h3_refined_latent_v1"
+      },
+      "tensor_shapes": {
+        "audio_latent": [
+          1,
+          32,
+          2,
+          207
+        ],
+        "video": [
+          1,
+          24,
+          37,
+          90,
+          160
+        ],
+        "waveform": [
+          1,
+          2,
+          55296
+        ]
+      },
+      "video_finite": true
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repo": "NVlabs/Sana",
+    "revision": "1e3c9c27ce56ca03b203cff9f63bed225a1599cd",
+    "path": "models/Open-H3-Regenerate-2K/IC",
+    "base_model_revision": "42ed227ee7df40d41602854ae760620d6eb651fe"
+  },
+  "validation_comfy_commit": "b5a432157de6b8884f81104cd02926adf4d597e4",
+  "validation_environment": {
+    "comfy_version": "0.43.0",
+    "python": "3.13.11",
+    "torch": "2.10.0+cu130",
+    "comfy_kitchen": "0.2.40",
+    "frontend": "1.57.6",
+    "lbh_upscaler_commit": "40316cf008b2fd8663263270669eb4da23f89d2c"
+  },
+  "assets": [
+    {
+      "id": "ic",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "lora/open_h3_regenerate_2k_ic_lora.safetensors",
+      "size": 8301660800,
+      "sha256": "1b657ce3ddfdf5bfa4dd9728bf0a694793adcb90fba245b7c4b9d0bd05c52251",
+      "destination": "loras/H3/open_h3_regenerate_2k_ic_lora.safetensors",
+      "required": true
+    },
+    {
+      "id": "hyperflow",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "lora/minimax_h3_hyperflow_8step_v1.0.safetensors",
+      "size": 2795328008,
+      "sha256": "9297f4505bfdef59c3014d11274411809c19b0abfe26161cab2b425a696df447",
+      "destination": "loras/H3/minimax_h3_hyperflow_8step_v1.0.safetensors",
+      "required": true
+    },
+    {
+      "id": "sharp",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "lora/minimax_h3_lms_v1.0_r64.safetensors",
+      "size": 1239664536,
+      "sha256": "16f3195bc6bffa431c0598dc2031e520ba058b4fcbc9f104db9e3fdfdeacf60c",
+      "destination": "loras/H3/minimax_h3_lms_v1.0_r64.safetensors",
+      "required": true
+    },
+    {
+      "id": "upscaler",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "latent_upsampler/minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors",
+      "size": 690592992,
+      "sha256": "4f57821f5837f32f7142b67d815606dbd7550f194e5c769f7d6c3f83b146a5e6",
+      "destination": "latent_upscale_models/minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors",
+      "required": false
+    },
+    {
+      "id": "silence",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "assets/silence_audio_124f.safetensors",
+      "size": 26768,
+      "sha256": "dc90d8b8505f7160110b4122fb78348b232877e2928f7049c6833dcebde3f18c",
+      "destination": "open_h3_ic/silence_audio_124f.safetensors",
+      "required": false
+    },
+    {
+      "id": "decoder_v2",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K-IC",
+      "revision": "54a7104b204fb46486cf85c2f600942118186d57",
+      "path": "vae_fast/fast_h3_vae_v2_24l.safetensors",
+      "size": 6471256328,
+      "sha256": "b7527bf0dbac4b4ffc37e106478e5caabc96894f29cd1ebfe38cea0b44982eb0",
+      "destination": "vae/H3/fast_h3_vae_v2_24l.safetensors",
+      "required": false
+    },
+    {
+      "id": "base",
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+      "path": "diffusion_models/minimax_h3_ref2va_int8_convrot.safetensors",
+      "size": 34038894550,
+      "sha256": "9eef934046a0671bc8a5daf87100705e1478419c574cfde70c50fbe6885f76a9",
+      "destination": "diffusion_models/H3/minimax_h3_ref2va_int8_convrot.safetensors",
+      "required": true
+    },
+    {
+      "id": "text_encoder",
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+      "path": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "size": 15687142551,
+      "sha256": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
+      "destination": "text_encoders/H3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "required": true
+    },
+    {
+      "id": "video_vae",
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+      "path": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "size": 5207808496,
+      "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
+      "destination": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "required": true
+    },
+    {
+      "id": "audio_vae",
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "54472221d27c695fca9621b0c3ed52f06c4af707",
+      "path": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "size": 605254808,
+      "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+      "destination": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "required": true
+    },
+    {
+      "id": "decoder_v1",
+      "repo": "Efficient-Large-Model/Open-H3-Regenerate-2K",
+      "revision": "50c09cf1df5f9262b9279868c1c666bd5fe3476b",
+      "path": "vae_fast/fast_h3_vae_noncausal_24l.safetensors",
+      "size": 6471256328,
+      "sha256": "8658f1e85b5997c4ba716406a2f148bfa36cf97d4d5fcd402c7bd341f54e77a1",
+      "destination": "vae/H3/fast_h3_vae_noncausal_24l.safetensors",
+      "required": false
+    },
+    {
+      "id": "upscaler_fp32",
+      "repo": "LBH-123-AI/Minimax_h3_latent_Upscaler",
+      "revision": "3f941d5d182014dd5c0a5e16330420ee2d4aa0c6",
+      "path": "minimax_h3_latent_upscaler_3d_conv_v1/minimax_h3_latent_upscaler_3d_conv_v1_fp32.pth",
+      "size": 1381251539,
+      "sha256": "d54716fe021a0b653ef07943e3ea4f704a26f3f60a23f905cf45dc87de149f68",
+      "destination": "latent_upscale_models/minimax_h3_latent_upscaler_3d_conv_v1_fp32.pth",
+      "required": true
+    }
+  ]
+}
