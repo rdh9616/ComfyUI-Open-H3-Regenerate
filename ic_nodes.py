@@ -133,9 +133,11 @@ class OpenH3ICTargetLatent:
             raise ValueError("IC schedule must be up3, up4 or hf8")
         if int(getattr(audio_vae, "audio_sample_rate", 0)) != 32000:
             raise ValueError("IC needs the MiniMax H3 32000 Hz audio VAE to encode silence")
-        length = round(ic.FRAMES / 24 * 32000)
-        sound = audio_vae.encode(torch.zeros(1, length, 2))
         audio_t = round(ic.FRAMES / 24 * 40)
+        # VAE.encode crops input to its stride *before* the audio model can right-pad.
+        # 124/24*32000 rounds to 165333, then crops to 206 hops; IC needs all 207.
+        length = audio_t * 800
+        sound = audio_vae.encode(torch.zeros(1, length, 2))
         if (sound.ndim != 4 or sound.shape[:3] != (1, 32, 2) or sound.shape[-1] < audio_t or
                 not torch.isfinite(sound).all()):
             raise ValueError(f"IC audio VAE must yield finite [1, 32, 2, >=207] silence; got {tuple(sound.shape)}")

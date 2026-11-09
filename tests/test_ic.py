@@ -110,11 +110,18 @@ def test_encode_and_target():
     rejects(lambda: ic.validate_conditioning([[torch.zeros(1, 2, 5120), {}]]), "vision/text tags")
 
     class Audio:
+        from comfy.sd import VAE
+
         audio_sample_rate = 32000
+        crop_input, output_channels = True, 2
+        spacial_compression_encode = staticmethod(lambda: 800)
+        crop = VAE.vae_encode_crop_pixels
 
         def encode(self, x):
-            assert x.shape == (1, round(124 / 24 * 32000), 2) and x.count_nonzero() == 0
-            return torch.full((1, 32, 2, 207), 0.125)
+            assert x.count_nonzero() == 0
+            # Exercise native pre-encode cropping, which caused 206 rather than 207 audio latents.
+            cropped = self.crop(x)
+            return torch.full((1, 32, 2, cropped.shape[1] // 800), 0.125)
 
     for schedule, sigma in (("up3", 0.834942), ("up4", 0.923077), ("hf8", 1.0)):
         result, = ic_nodes.OpenH3ICTargetLatent().build(lat, {"samples": target}, Audio(), schedule)

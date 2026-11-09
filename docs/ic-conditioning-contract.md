@@ -27,6 +27,8 @@ Layout comparisons use Diffusers `8c54b38fea3d624d23d0e43c0c96037f080a79f9`, the
 
 Keep the original soundtrack outside conditioning and denoising. Connect it to Finish Frames / Create Video, and
 to Save Refined Latent when retaining a recoverable output. The reference has no audio-reference block.
+Silence is encoded from 207 whole 800-sample audio hops. Passing the rounded video duration instead would let
+ComfyUI crop it to 206 hops before the audio VAE's padding, changing the required final audio row.
 
 ## Encoding and normalization
 
@@ -93,3 +95,18 @@ global RNG, frame bounds, fixed reference noise, target initialization, silence 
 
 These are CPU contract checks. They do not establish fidelity, speed or full IC compatibility. The workflow task
 records the separate GPU smoke and end-to-end comparisons once the sampler/weight integration is available.
+
+## Isolated conditioning smoke (2026-11-09)
+
+The public Sana C026 input (121 real frames, padded to 124), empty caption and seed 42 passed through all three
+IC nodes using the official Qwen NVFP4 encoder, FP16-stored stock video VAE in FP32, and LBH FP32-stored upscaler
+in BF16. Qwen produced `[1,6155,5120]` with 6060 vision and 95 text tags. The draft sample exactly reproduced an
+earlier independent encode with the same seed. Draft, 2K target and silence shapes matched the contract, and the
+target video/audio masks were all one/all zero. Silence differed from the pinned upstream BF16 fixture by
+RMS 0.00105022 and maximum absolute difference 0.00400198; this is not a bitwise-match claim.
+
+On an RTX PRO 5000, measured conditioning took 52.22 seconds, upscaling 4.63 seconds and target/audio preparation
+0.21 seconds. Total measured execution was 57.37 seconds; peak PyTorch CUDA allocations were 20,432,680,448 bytes.
+The timer started after loader creation and excludes process startup and input loading. The isolated process
+unloaded its models and exited 0. ComfyUI emitted an ignored `ModelPatcher.__del__` shutdown exception afterward.
+This check performed no denoising, decoding, live-server queueing or image-quality evaluation.
