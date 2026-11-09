@@ -35,8 +35,32 @@ def shifted_grid(start, steps, shift=REFINE_SHIFT):
 SCHEDULES[2] = shifted_grid(0.7, 2)
 
 
-def refine_sigmas(steps, start_sigma=0.0):
-    """The release grid for `steps` (3 or 2), or the shift-6 grid from `start_sigma` when it is > 0."""
+def parse_explicit_sigmas(text):
+    """Comma-separated sigmas, e.g. HyperFlow's last three shifted grid points.
+
+    Kept separate from refine_sigmas because some schedules cannot be expressed as
+    (start_sigma, shift) at all: HyperFlow's interior points are individually shifted raw
+    grid values, not uniform spacing from a start.
+    """
+    values = [float(part) for part in text.replace(";", ",").split(",") if part.strip()]
+    if len(values) < 2:
+        raise ValueError("explicit_sigmas needs at least a start and a final 0")
+    if values[-1] != 0.0:
+        raise ValueError("explicit_sigmas must end at 0.0")
+    for earlier, later in zip(values, values[1:]):
+        if later >= earlier:
+            raise ValueError("explicit_sigmas must decrease strictly")
+    return values
+
+
+def refine_sigmas(steps, start_sigma=0.0, explicit=""):
+    """The release grid for `steps` (3 or 2), the shift-6 grid from `start_sigma`, or `explicit`.
+
+    `explicit` wins when non-empty; it is the only way to pin a schedule whose interior
+    points are not uniform spacing from a start (HyperFlow / IC).
+    """
+    if explicit and str(explicit).strip():
+        return parse_explicit_sigmas(str(explicit))
     if start_sigma and start_sigma > 0:
         return shifted_grid(float(start_sigma), int(steps))
     if steps not in SCHEDULES:

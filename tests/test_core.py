@@ -38,6 +38,28 @@ def test_sigmas():
         pass
 
 
+def test_explicit_sigmas_override():
+    # HyperFlow's last three nonzero raw grid points, each shifted by 12x/(1+11x).
+    hyperflow = "0.8349423898, 0.6968520491, 0.4687533149, 0.0"
+    want = [0.8349423898, 0.6968520491, 0.4687533149, 0.0]
+    close(core.refine_sigmas(3, 0.0, hyperflow), want, 1e-9)
+    # Empty explicit leaves every existing path untouched.
+    close(core.refine_sigmas(3), core.SCHEDULES[3])
+    close(core.refine_sigmas(3, 0.0, ""), core.SCHEDULES[3])
+    close(core.refine_sigmas(3, 0.8), core.refine_sigmas(3, 0.8))
+    # And this is the point: no start_sigma reproduces it, because shift-6 spacing is uniform.
+    for shift_start in (0.8349423898, 0.835, 0.839236):
+        got = core.refine_sigmas(3, shift_start)
+        assert not all(abs(a - b) < 1e-6 for a, b in zip(got, want)), (
+            f"start_sigma={shift_start} unexpectedly reproduced the HyperFlow grid")
+    for bad in ("0.5", "0.5, 0.6, 0.0", "0.5, 0.4, 0.1", "0.9, 0.5"):
+        try:
+            core.refine_sigmas(3, 0.0, bad)
+            raise AssertionError(f"explicit_sigmas {bad!r} should raise")
+        except ValueError:
+            pass
+
+
 def test_frames():
     assert core.align_frame_count(121) == 124 and core.video_latent_t(124) == 37
     assert core.align_frame_count(360) == 362 and core.video_latent_t(362) == 107
